@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { FileText, Mail, Calendar, Target, MessageSquare, Download, Copy, Sparkles, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,12 +12,11 @@ import { useToast } from "@/components/ui/use-toast";
 import { useBackend } from "../contexts/AuthContext";
 
 interface SmartTemplatesProps {
-  noteId?: number;
   transcript?: string;
   summary?: string;
 }
 
-export default function SmartTemplates({ noteId, transcript, summary }: SmartTemplatesProps) {
+export default function SmartTemplates({ transcript, summary }: SmartTemplatesProps) {
   const backend = useBackend();
   const { toast } = useToast();
   
@@ -122,7 +121,7 @@ export default function SmartTemplates({ noteId, transcript, summary }: SmartTem
           <div className="grid md:grid-cols-3 gap-4">
             <div>
               <Label className="text-foreground">Template Type</Label>
-              <Select value={templateType} onValueChange={setTemplateType}>
+              <Select value={templateType} onValueChange={(value) => setTemplateType(value as any)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -163,7 +162,7 @@ export default function SmartTemplates({ noteId, transcript, summary }: SmartTem
 
             <div>
               <Label className="text-foreground">Tone</Label>
-              <Select value={tone} onValueChange={setTone}>
+              <Select value={tone} onValueChange={(value) => setTone(value as any)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -178,7 +177,7 @@ export default function SmartTemplates({ noteId, transcript, summary }: SmartTem
 
             <div>
               <Label className="text-foreground">Length</Label>
-              <Select value={length} onValueChange={setLength}>
+              <Select value={length} onValueChange={(value) => setLength(value as any)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
