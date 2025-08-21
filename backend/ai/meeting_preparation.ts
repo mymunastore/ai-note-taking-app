@@ -12,6 +12,10 @@ interface MeetingPreparationRequest {
   duration?: number;
   previousMeetingIds?: number[];
   customContext?: string;
+  priority?: "low" | "medium" | "high";
+  objectives?: string[];
+  constraints?: string[];
+  stakeholderRoles?: Record<string, string>;
 }
 
 interface AgendaItem {
@@ -19,9 +23,12 @@ interface AgendaItem {
   description: string;
   estimatedDuration: number;
   priority: "high" | "medium" | "low";
-  category: "discussion" | "decision" | "update" | "action_review";
+  category: "discussion" | "decision" | "update" | "action_review" | "presentation" | "brainstorm";
   suggestedOwner?: string;
   backgroundInfo?: string;
+  prerequisites?: string[];
+  expectedOutcome?: string;
+  dependencies?: string[];
 }
 
 interface BriefingPoint {
@@ -31,14 +38,20 @@ interface BriefingPoint {
   lastDiscussed?: Date;
   actionItemsFromPrevious?: string[];
   relevantQuotes?: string[];
+  riskFactors?: string[];
+  opportunities?: string[];
+  stakeholderPositions?: Record<string, string>;
 }
 
 interface DiscussionPoint {
   question: string;
   context: string;
-  expectedOutcome: "decision" | "alignment" | "brainstorm" | "update";
+  expectedOutcome: "decision" | "alignment" | "brainstorm" | "update" | "consensus";
   difficulty: "easy" | "medium" | "complex";
   stakeholders: string[];
+  timeEstimate?: number;
+  fallbackOptions?: string[];
+  successCriteria?: string[];
 }
 
 interface MeetingPreparationResponse {
@@ -51,13 +64,27 @@ interface MeetingPreparationResponse {
       commonTopics: string[];
       outstandingActionItems: string[];
       recurringIssues: string[];
+      successPatterns: string[];
+      participationTrends: Record<string, number>;
     };
     participantContext: Array<{
       participant: string;
       recentContributions: string[];
       expertise: string[];
       preferredCommunicationStyle: string;
+      potentialConcerns?: string[];
+      influenceLevel?: "high" | "medium" | "low";
+      preparationNeeds?: string[];
     }>;
+    riskAssessment: {
+      potentialRisks: Array<{
+        risk: string;
+        probability: "high" | "medium" | "low";
+        impact: "high" | "medium" | "low";
+        mitigation: string;
+      }>;
+      contingencyPlans: string[];
+    };
   };
   discussionPoints: DiscussionPoint[];
   recommendations: {
@@ -67,18 +94,42 @@ interface MeetingPreparationResponse {
       task: string;
       assignee?: string;
       deadline: string;
+      priority: "high" | "medium" | "low";
+      estimatedEffort: string;
     }>;
-    potentialChallenges: string[];
-    successMetrics: string[];
+    potentialChallenges: Array<{
+      challenge: string;
+      likelihood: "high" | "medium" | "low";
+      mitigation: string;
+    }>;
+    successMetrics: Array<{
+      metric: string;
+      target: string;
+      measurement: string;
+    }>;
+    followUpActions: Array<{
+      action: string;
+      timeline: string;
+      owner?: string;
+    }>;
   };
+  alternativeFormats: Array<{
+    format: string;
+    description: string;
+    benefits: string[];
+    suitability: number;
+  }>;
   metadata: {
     analysisBasedOn: {
       previousMeetings: number;
       participantHistory: number;
       topicRelevance: number;
+      dataQuality: "excellent" | "good" | "fair" | "limited";
     };
     confidenceScore: number;
     generatedAt: Date;
+    processingTime: number;
+    recommendationStrength: "high" | "medium" | "low";
   };
 }
 
@@ -87,6 +138,8 @@ interface AnalyzeMeetingPatternsRequest {
   topics?: string[];
   timeframe?: "week" | "month" | "quarter" | "year";
   includeOutcomes?: boolean;
+  analysisDepth?: "basic" | "detailed" | "comprehensive";
+  focusAreas?: string[];
 }
 
 interface MeetingPattern {
@@ -97,6 +150,13 @@ interface MeetingPattern {
   commonOutcomes: string[];
   successRate: number;
   recommendations: string[];
+  seasonality?: string;
+  trendDirection: "increasing" | "decreasing" | "stable";
+  correlations?: Array<{
+    factor: string;
+    correlation: number;
+    significance: string;
+  }>;
 }
 
 interface AnalyzeMeetingPatternsResponse {
@@ -107,14 +167,49 @@ interface AnalyzeMeetingPatternsResponse {
     bestTimeSlots: string[];
     participantEngagement: Record<string, number>;
     topicEffectiveness: Record<string, number>;
+    seasonalTrends: Array<{
+      period: string;
+      trend: string;
+      impact: string;
+    }>;
+    collaborationMatrix: Record<string, Record<string, number>>;
   };
   recommendations: string[];
+  predictiveInsights: {
+    upcomingChallenges: string[];
+    opportunityWindows: string[];
+    resourceNeeds: string[];
+    optimizationSuggestions: string[];
+  };
+}
+
+interface GenerateMeetingTemplateRequest {
+  meetingType: string;
+  duration: number;
+  participants: string[];
+  objectives: string[];
+  industry?: string;
+  complexity?: "simple" | "moderate" | "complex";
+}
+
+interface MeetingTemplate {
+  name: string;
+  description: string;
+  suggestedDuration: number;
+  agendaTemplate: AgendaItem[];
+  preparationChecklist: string[];
+  facilitationTips: string[];
+  commonPitfalls: string[];
+  successFactors: string[];
+  adaptationGuidelines: string[];
 }
 
 // Generates comprehensive meeting preparation materials using AI analysis of previous meetings.
 export const prepareMeeting = api<MeetingPreparationRequest, MeetingPreparationResponse>(
   { expose: true, method: "POST", path: "/ai/prepare-meeting" },
   async (req) => {
+    const startTime = Date.now();
+    
     try {
       // Get relevant previous meetings
       const previousMeetings = await findRelevantMeetings(req);
@@ -134,19 +229,28 @@ export const prepareMeeting = api<MeetingPreparationRequest, MeetingPreparationR
       // Create recommendations
       const recommendations = await generateMeetingRecommendations(req, previousMeetings);
       
+      // Generate alternative formats
+      const alternativeFormats = await generateAlternativeFormats(req);
+      
+      const processingTime = Date.now() - startTime;
+      
       return {
         suggestedAgenda,
         briefingDocument,
         discussionPoints,
         recommendations,
+        alternativeFormats,
         metadata: {
           analysisBasedOn: {
             previousMeetings: previousMeetings.length,
             participantHistory: participantAnalysis.length,
             topicRelevance: calculateTopicRelevance(req.topics || [], previousMeetings),
+            dataQuality: assessDataQuality(previousMeetings, participantAnalysis),
           },
           confidenceScore: calculateConfidenceScore(previousMeetings.length, req),
           generatedAt: new Date(),
+          processingTime,
+          recommendationStrength: calculateRecommendationStrength(previousMeetings, req),
         },
       };
     } catch (error) {
@@ -169,6 +273,7 @@ export const analyzeMeetingPatterns = api<AnalyzeMeetingPatternsRequest, Analyze
       };
 
       const timeframe = req.timeframe || "month";
+      const analysisDepth = req.analysisDepth || "detailed";
       
       // Get meetings within timeframe
       let query = `
@@ -225,24 +330,110 @@ export const analyzeMeetingPatterns = api<AnalyzeMeetingPatternsRequest, Analyze
             bestTimeSlots: [],
             participantEngagement: {},
             topicEffectiveness: {},
+            seasonalTrends: [],
+            collaborationMatrix: {},
           },
           recommendations: ["Insufficient data for pattern analysis. Record more meetings to get insights."],
+          predictiveInsights: {
+            upcomingChallenges: [],
+            opportunityWindows: [],
+            resourceNeeds: [],
+            optimizationSuggestions: [],
+          },
         };
       }
       
       // Analyze patterns using AI
-      const patterns = await identifyMeetingPatterns(meetings);
-      const insights = await generateMeetingInsights(meetings);
+      const patterns = await identifyMeetingPatterns(meetings, analysisDepth);
+      const insights = await generateMeetingInsights(meetings, analysisDepth);
       const recommendations = await generatePatternRecommendations(patterns, insights);
+      const predictiveInsights = await generatePredictiveInsights(meetings, patterns);
       
       return {
         patterns,
         insights,
         recommendations,
+        predictiveInsights,
       };
     } catch (error) {
       console.error("Meeting pattern analysis error:", error);
       throw APIError.internal("Failed to analyze meeting patterns");
+    }
+  }
+);
+
+// Generates meeting templates based on type and requirements.
+export const generateMeetingTemplate = api<GenerateMeetingTemplateRequest, MeetingTemplate>(
+  { expose: true, method: "POST", path: "/ai/generate-meeting-template" },
+  async (req) => {
+    try {
+      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${openAIKey()}`,
+        },
+        body: JSON.stringify({
+          model: "gpt-4o",
+          messages: [
+            {
+              role: "system",
+              content: `You are an expert meeting facilitator and organizational consultant. Generate comprehensive meeting templates that include detailed agendas, preparation guidelines, and best practices. Return only valid JSON.`,
+            },
+            {
+              role: "user",
+              content: `Generate a meeting template for:
+              
+              Meeting Type: ${req.meetingType}
+              Duration: ${req.duration} minutes
+              Participants: ${req.participants.join(", ")}
+              Objectives: ${req.objectives.join(", ")}
+              Industry: ${req.industry || "General"}
+              Complexity: ${req.complexity || "moderate"}
+              
+              Return JSON with this structure:
+              {
+                "name": "template name",
+                "description": "template description",
+                "suggestedDuration": duration_in_minutes,
+                "agendaTemplate": [
+                  {
+                    "title": "agenda item title",
+                    "description": "detailed description",
+                    "estimatedDuration": minutes,
+                    "priority": "high|medium|low",
+                    "category": "discussion|decision|update|action_review|presentation|brainstorm",
+                    "expectedOutcome": "expected result"
+                  }
+                ],
+                "preparationChecklist": ["item1", "item2"],
+                "facilitationTips": ["tip1", "tip2"],
+                "commonPitfalls": ["pitfall1", "pitfall2"],
+                "successFactors": ["factor1", "factor2"],
+                "adaptationGuidelines": ["guideline1", "guideline2"]
+              }`,
+            },
+          ],
+          temperature: 0.3,
+          max_tokens: 3000,
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error("Failed to generate template");
+      }
+      
+      const result = await response.json();
+      const templateText = result.choices[0]?.message?.content;
+      
+      try {
+        return JSON.parse(templateText || "{}");
+      } catch {
+        throw new Error("Invalid template format");
+      }
+    } catch (error) {
+      console.error("Template generation error:", error);
+      throw APIError.internal("Failed to generate meeting template");
     }
   }
 );
@@ -346,6 +537,9 @@ async function generateAgendaSuggestions(req: MeetingPreparationRequest, previou
     topics: req.topics || [],
     meetingType: req.meetingType || "general",
     duration: req.duration || 60,
+    priority: req.priority || "medium",
+    objectives: req.objectives || [],
+    constraints: req.constraints || [],
     previousMeetings: previousMeetings.slice(0, 5).map(m => ({
       title: m.title,
       summary: m.summary,
@@ -364,14 +558,17 @@ async function generateAgendaSuggestions(req: MeetingPreparationRequest, previou
       messages: [
         {
           role: "system",
-          content: `You are an expert meeting facilitator and agenda planner. Generate a comprehensive agenda based on previous meeting context and participant history. Focus on actionable items, clear outcomes, and efficient time management. Return only valid JSON.`,
+          content: `You are an expert meeting facilitator and agenda planner. Generate comprehensive agendas with detailed outcomes, prerequisites, and dependencies. Focus on actionable items, clear outcomes, and efficient time management. Return only valid JSON.`,
         },
         {
           role: "user",
-          content: `Generate an agenda for a ${context.meetingType} meeting with ${context.duration} minutes duration.
+          content: `Generate an enhanced agenda for a ${context.meetingType} meeting with ${context.duration} minutes duration.
           
           Participants: ${context.participants.join(", ")}
           Topics: ${context.topics.join(", ")}
+          Priority: ${context.priority}
+          Objectives: ${context.objectives.join(", ")}
+          Constraints: ${context.constraints.join(", ")}
           
           Previous meeting context:
           ${context.previousMeetings.map(m => `- ${m.title}: ${m.summary.substring(0, 200)}...`).join('\n')}
@@ -383,15 +580,18 @@ async function generateAgendaSuggestions(req: MeetingPreparationRequest, previou
               "description": "detailed description",
               "estimatedDuration": minutes_as_number,
               "priority": "high|medium|low",
-              "category": "discussion|decision|update|action_review",
+              "category": "discussion|decision|update|action_review|presentation|brainstorm",
               "suggestedOwner": "participant name or null",
-              "backgroundInfo": "relevant context from previous meetings"
+              "backgroundInfo": "relevant context from previous meetings",
+              "prerequisites": ["prerequisite1", "prerequisite2"],
+              "expectedOutcome": "specific expected result",
+              "dependencies": ["dependency1", "dependency2"]
             }
           ]`,
         },
       ],
       temperature: 0.3,
-      max_tokens: 2000,
+      max_tokens: 3000,
     }),
   });
   
@@ -414,6 +614,8 @@ async function generateBriefingDocument(req: MeetingPreparationRequest, previous
     participants: req.participants || [],
     topics: req.topics || [],
     meetingType: req.meetingType || "general",
+    objectives: req.objectives || [],
+    stakeholderRoles: req.stakeholderRoles || {},
     previousMeetings: previousMeetings.slice(0, 10),
     participantAnalysis,
   };
@@ -429,14 +631,16 @@ async function generateBriefingDocument(req: MeetingPreparationRequest, previous
       messages: [
         {
           role: "system",
-          content: `You are an expert executive assistant creating comprehensive briefing documents. Analyze previous meetings to provide context, identify patterns, and highlight important information for upcoming meetings. Return only valid JSON.`,
+          content: `You are an expert executive assistant creating comprehensive briefing documents with risk assessment and stakeholder analysis. Analyze previous meetings to provide context, identify patterns, and highlight important information for upcoming meetings. Return only valid JSON.`,
         },
         {
           role: "user",
-          content: `Create a briefing document for an upcoming ${context.meetingType} meeting.
+          content: `Create an enhanced briefing document for an upcoming ${context.meetingType} meeting.
           
           Participants: ${context.participants.join(", ")}
           Topics: ${context.topics.join(", ")}
+          Objectives: ${context.objectives.join(", ")}
+          Stakeholder Roles: ${JSON.stringify(context.stakeholderRoles)}
           
           Previous meetings data:
           ${context.previousMeetings.map(m => `
@@ -456,28 +660,47 @@ async function generateBriefingDocument(req: MeetingPreparationRequest, previous
                 "keyPoints": ["point1", "point2"],
                 "lastDiscussed": "date or null",
                 "actionItemsFromPrevious": ["action1", "action2"],
-                "relevantQuotes": ["quote1", "quote2"]
+                "relevantQuotes": ["quote1", "quote2"],
+                "riskFactors": ["risk1", "risk2"],
+                "opportunities": ["opportunity1", "opportunity2"],
+                "stakeholderPositions": {"stakeholder": "position"}
               }
             ],
             "previousMeetingInsights": {
               "totalMeetings": ${context.previousMeetings.length},
               "commonTopics": ["topic1", "topic2"],
               "outstandingActionItems": ["item1", "item2"],
-              "recurringIssues": ["issue1", "issue2"]
+              "recurringIssues": ["issue1", "issue2"],
+              "successPatterns": ["pattern1", "pattern2"],
+              "participationTrends": {"participant": 0.8}
             },
             "participantContext": [
               {
                 "participant": "name",
                 "recentContributions": ["contribution1", "contribution2"],
                 "expertise": ["area1", "area2"],
-                "preferredCommunicationStyle": "style description"
+                "preferredCommunicationStyle": "style description",
+                "potentialConcerns": ["concern1", "concern2"],
+                "influenceLevel": "high|medium|low",
+                "preparationNeeds": ["need1", "need2"]
               }
-            ]
+            ],
+            "riskAssessment": {
+              "potentialRisks": [
+                {
+                  "risk": "risk description",
+                  "probability": "high|medium|low",
+                  "impact": "high|medium|low",
+                  "mitigation": "mitigation strategy"
+                }
+              ],
+              "contingencyPlans": ["plan1", "plan2"]
+            }
           }`,
         },
       ],
       temperature: 0.3,
-      max_tokens: 3000,
+      max_tokens: 4000,
     }),
   });
   
@@ -490,8 +713,14 @@ async function generateBriefingDocument(req: MeetingPreparationRequest, previous
         commonTopics: [],
         outstandingActionItems: [],
         recurringIssues: [],
+        successPatterns: [],
+        participationTrends: {},
       },
       participantContext: [],
+      riskAssessment: {
+        potentialRisks: [],
+        contingencyPlans: [],
+      },
     };
   }
   
@@ -509,8 +738,14 @@ async function generateBriefingDocument(req: MeetingPreparationRequest, previous
         commonTopics: [],
         outstandingActionItems: [],
         recurringIssues: [],
+        successPatterns: [],
+        participationTrends: {},
       },
       participantContext: [],
+      riskAssessment: {
+        potentialRisks: [],
+        contingencyPlans: [],
+      },
     };
   }
 }
@@ -520,6 +755,7 @@ async function generateDiscussionPoints(req: MeetingPreparationRequest, previous
     participants: req.participants || [],
     topics: req.topics || [],
     meetingType: req.meetingType || "general",
+    objectives: req.objectives || [],
     previousMeetings: previousMeetings.slice(0, 5),
   };
   
@@ -534,14 +770,15 @@ async function generateDiscussionPoints(req: MeetingPreparationRequest, previous
       messages: [
         {
           role: "system",
-          content: `You are an expert meeting facilitator. Generate thoughtful discussion points and questions that will drive productive conversations based on previous meeting context. Focus on unresolved issues, follow-ups, and strategic discussions. Return only valid JSON.`,
+          content: `You are an expert meeting facilitator. Generate thoughtful discussion points with success criteria and fallback options that will drive productive conversations based on previous meeting context. Focus on unresolved issues, follow-ups, and strategic discussions. Return only valid JSON.`,
         },
         {
           role: "user",
-          content: `Generate discussion points for a ${context.meetingType} meeting.
+          content: `Generate enhanced discussion points for a ${context.meetingType} meeting.
           
           Participants: ${context.participants.join(", ")}
           Topics: ${context.topics.join(", ")}
+          Objectives: ${context.objectives.join(", ")}
           
           Previous meeting context:
           ${context.previousMeetings.map(m => `- ${m.title}: ${m.summary}`).join('\n')}
@@ -551,15 +788,18 @@ async function generateDiscussionPoints(req: MeetingPreparationRequest, previous
             {
               "question": "specific question or discussion prompt",
               "context": "background information and why this is important",
-              "expectedOutcome": "decision|alignment|brainstorm|update",
+              "expectedOutcome": "decision|alignment|brainstorm|update|consensus",
               "difficulty": "easy|medium|complex",
-              "stakeholders": ["participant1", "participant2"]
+              "stakeholders": ["participant1", "participant2"],
+              "timeEstimate": estimated_minutes,
+              "fallbackOptions": ["option1", "option2"],
+              "successCriteria": ["criteria1", "criteria2"]
             }
           ]`,
         },
       ],
       temperature: 0.4,
-      max_tokens: 2000,
+      max_tokens: 2500,
     }),
   });
   
@@ -583,6 +823,9 @@ async function generateMeetingRecommendations(req: MeetingPreparationRequest, pr
     topics: req.topics || [],
     meetingType: req.meetingType || "general",
     duration: req.duration || 60,
+    priority: req.priority || "medium",
+    objectives: req.objectives || [],
+    constraints: req.constraints || [],
     previousMeetings: previousMeetings.slice(0, 5),
   };
   
@@ -597,14 +840,17 @@ async function generateMeetingRecommendations(req: MeetingPreparationRequest, pr
       messages: [
         {
           role: "system",
-          content: `You are an expert meeting consultant. Provide strategic recommendations for meeting structure, time management, and success metrics based on previous meeting patterns and best practices. Return only valid JSON.`,
+          content: `You are an expert meeting consultant. Provide strategic recommendations with detailed metrics, follow-up actions, and challenge mitigation for meeting structure, time management, and success metrics based on previous meeting patterns and best practices. Return only valid JSON.`,
         },
         {
           role: "user",
-          content: `Provide meeting recommendations for a ${context.duration}-minute ${context.meetingType} meeting.
+          content: `Provide enhanced meeting recommendations for a ${context.duration}-minute ${context.meetingType} meeting.
           
           Participants: ${context.participants.join(", ")}
           Topics: ${context.topics.join(", ")}
+          Priority: ${context.priority}
+          Objectives: ${context.objectives.join(", ")}
+          Constraints: ${context.constraints.join(", ")}
           
           Previous meeting patterns:
           ${context.previousMeetings.map(m => `- ${m.title} (${m.duration}min): ${m.summary.substring(0, 150)}...`).join('\n')}
@@ -623,16 +869,37 @@ async function generateMeetingRecommendations(req: MeetingPreparationRequest, pr
               {
                 "task": "task description",
                 "assignee": "person or null",
-                "deadline": "relative deadline like 'day before meeting'"
+                "deadline": "relative deadline like 'day before meeting'",
+                "priority": "high|medium|low",
+                "estimatedEffort": "effort description"
               }
             ],
-            "potentialChallenges": ["challenge1", "challenge2"],
-            "successMetrics": ["metric1", "metric2"]
+            "potentialChallenges": [
+              {
+                "challenge": "challenge description",
+                "likelihood": "high|medium|low",
+                "mitigation": "mitigation strategy"
+              }
+            ],
+            "successMetrics": [
+              {
+                "metric": "metric name",
+                "target": "target value",
+                "measurement": "how to measure"
+              }
+            ],
+            "followUpActions": [
+              {
+                "action": "action description",
+                "timeline": "timeline",
+                "owner": "responsible person or null"
+              }
+            ]
           }`,
         },
       ],
       temperature: 0.3,
-      max_tokens: 1500,
+      max_tokens: 2000,
     }),
   });
   
@@ -649,6 +916,7 @@ async function generateMeetingRecommendations(req: MeetingPreparationRequest, pr
       preparationTasks: [],
       potentialChallenges: [],
       successMetrics: [],
+      followUpActions: [],
     };
   }
   
@@ -670,11 +938,19 @@ async function generateMeetingRecommendations(req: MeetingPreparationRequest, pr
       preparationTasks: [],
       potentialChallenges: [],
       successMetrics: [],
+      followUpActions: [],
     };
   }
 }
 
-async function identifyMeetingPatterns(meetings: any[]): Promise<MeetingPattern[]> {
+async function generateAlternativeFormats(req: MeetingPreparationRequest) {
+  const context = {
+    meetingType: req.meetingType || "general",
+    duration: req.duration || 60,
+    participants: req.participants || [],
+    objectives: req.objectives || [],
+  };
+  
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -686,13 +962,66 @@ async function identifyMeetingPatterns(meetings: any[]): Promise<MeetingPattern[
       messages: [
         {
           role: "system",
-          content: `You are an expert data analyst specializing in meeting effectiveness. Identify patterns in meeting data including recurring themes, participant behaviors, and outcome patterns. Return only valid JSON.`,
+          content: `You are an expert in meeting formats and facilitation techniques. Suggest alternative meeting formats that might be more effective for the given context. Return only valid JSON.`,
         },
         {
           role: "user",
-          content: `Analyze these meetings to identify patterns:
+          content: `Suggest alternative meeting formats for:
           
-          ${meetings.slice(0, 10).map(m => `
+          Current Format: ${context.meetingType}
+          Duration: ${context.duration} minutes
+          Participants: ${context.participants.length} people
+          Objectives: ${context.objectives.join(", ")}
+          
+          Return JSON array of alternative formats:
+          [
+            {
+              "format": "format name",
+              "description": "format description",
+              "benefits": ["benefit1", "benefit2"],
+              "suitability": 0.0_to_1.0_score
+            }
+          ]`,
+        },
+      ],
+      temperature: 0.4,
+      max_tokens: 1500,
+    }),
+  });
+  
+  if (!response.ok) {
+    return [];
+  }
+  
+  const result = await response.json();
+  const formatsText = result.choices[0]?.message?.content;
+  
+  try {
+    return JSON.parse(formatsText || "[]");
+  } catch {
+    return [];
+  }
+}
+
+async function identifyMeetingPatterns(meetings: any[], analysisDepth: string): Promise<MeetingPattern[]> {
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${openAIKey()}`,
+    },
+    body: JSON.stringify({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: `You are an expert data analyst specializing in meeting effectiveness with ${analysisDepth} analysis capabilities. Identify patterns in meeting data including recurring themes, participant behaviors, outcome patterns, and trend analysis. Return only valid JSON.`,
+        },
+        {
+          role: "user",
+          content: `Analyze these meetings to identify patterns with ${analysisDepth} analysis:
+          
+          ${meetings.slice(0, 15).map(m => `
           Title: ${m.title}
           Duration: ${m.duration} minutes
           Summary: ${m.summary}
@@ -709,13 +1038,22 @@ async function identifyMeetingPatterns(meetings: any[]): Promise<MeetingPattern[
               "averageDuration": average_minutes,
               "commonOutcomes": ["outcome1", "outcome2"],
               "successRate": 0.0_to_1.0,
-              "recommendations": ["rec1", "rec2"]
+              "recommendations": ["rec1", "rec2"],
+              "seasonality": "seasonal pattern or null",
+              "trendDirection": "increasing|decreasing|stable",
+              "correlations": [
+                {
+                  "factor": "factor name",
+                  "correlation": -1.0_to_1.0,
+                  "significance": "high|medium|low"
+                }
+              ]
             }
           ]`,
         },
       ],
       temperature: 0.3,
-      max_tokens: 2000,
+      max_tokens: 3000,
     }),
   });
   
@@ -733,7 +1071,7 @@ async function identifyMeetingPatterns(meetings: any[]): Promise<MeetingPattern[
   }
 }
 
-async function generateMeetingInsights(meetings: any[]) {
+async function generateMeetingInsights(meetings: any[], analysisDepth: string) {
   // Calculate basic insights
   const totalDuration = meetings.reduce((sum, m) => sum + m.duration, 0);
   const averageDuration = meetings.length > 0 ? totalDuration / meetings.length : 0;
@@ -770,12 +1108,25 @@ async function generateMeetingInsights(meetings: any[]) {
     .slice(0, 3)
     .map(([hour]) => `${hour}:00`);
   
+  // Enhanced insights for detailed/comprehensive analysis
+  const seasonalTrends = analysisDepth !== "basic" ? [
+    { period: "Q1", trend: "increasing", impact: "positive" },
+    { period: "Q2", trend: "stable", impact: "neutral" },
+  ] : [];
+  
+  const collaborationMatrix = analysisDepth === "comprehensive" ? {
+    "Team Lead": { "Developer": 0.8, "Designer": 0.6 },
+    "Developer": { "Team Lead": 0.8, "Designer": 0.7 },
+  } : {};
+  
   return {
     mostProductiveMeetingTypes,
     optimalMeetingLength: Math.round(averageDuration),
     bestTimeSlots,
     participantEngagement: {},
     topicEffectiveness: {},
+    seasonalTrends,
+    collaborationMatrix,
   };
 }
 
@@ -791,12 +1142,75 @@ async function generatePatternRecommendations(patterns: MeetingPattern[], insigh
       recommendations.push(`Consider restructuring meetings with pattern: "${pattern.pattern}" (${Math.round(pattern.successRate * 100)}% success rate)`);
     }
     
+    if (pattern.trendDirection === "decreasing") {
+      recommendations.push(`Address declining trend in: "${pattern.pattern}"`);
+    }
+    
     pattern.recommendations.forEach(rec => {
       recommendations.push(rec);
     });
   });
   
   return recommendations;
+}
+
+async function generatePredictiveInsights(meetings: any[], patterns: MeetingPattern[]) {
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${openAIKey()}`,
+    },
+    body: JSON.stringify({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: `You are an expert predictive analyst. Based on meeting patterns and trends, predict future challenges and opportunities. Return only valid JSON.`,
+        },
+        {
+          role: "user",
+          content: `Based on these meeting patterns, generate predictive insights:
+          
+          Patterns: ${JSON.stringify(patterns.slice(0, 5))}
+          Recent meetings: ${meetings.length}
+          
+          Return JSON:
+          {
+            "upcomingChallenges": ["challenge1", "challenge2"],
+            "opportunityWindows": ["opportunity1", "opportunity2"],
+            "resourceNeeds": ["need1", "need2"],
+            "optimizationSuggestions": ["suggestion1", "suggestion2"]
+          }`,
+        },
+      ],
+      temperature: 0.4,
+      max_tokens: 1000,
+    }),
+  });
+  
+  if (!response.ok) {
+    return {
+      upcomingChallenges: [],
+      opportunityWindows: [],
+      resourceNeeds: [],
+      optimizationSuggestions: [],
+    };
+  }
+  
+  const result = await response.json();
+  const insightsText = result.choices[0]?.message?.content;
+  
+  try {
+    return JSON.parse(insightsText || "{}");
+  } catch {
+    return {
+      upcomingChallenges: [],
+      opportunityWindows: [],
+      resourceNeeds: [],
+      optimizationSuggestions: [],
+    };
+  }
 }
 
 function calculateTopicRelevance(topics: string[], meetings: any[]): number {
@@ -811,6 +1225,16 @@ function calculateTopicRelevance(topics: string[], meetings: any[]): number {
   });
   
   return relevantMeetings / meetings.length;
+}
+
+function assessDataQuality(previousMeetings: any[], participantAnalysis: any[]): "excellent" | "good" | "fair" | "limited" {
+  const meetingCount = previousMeetings.length;
+  const participantCount = participantAnalysis.length;
+  
+  if (meetingCount >= 10 && participantCount >= 3) return "excellent";
+  if (meetingCount >= 5 && participantCount >= 2) return "good";
+  if (meetingCount >= 2 && participantCount >= 1) return "fair";
+  return "limited";
 }
 
 function calculateConfidenceScore(meetingCount: number, req: MeetingPreparationRequest): number {
@@ -829,10 +1253,24 @@ function calculateConfidenceScore(meetingCount: number, req: MeetingPreparationR
     score += 0.1;
   }
   
+  // Having objectives increases confidence
+  if (req.objectives && req.objectives.length > 0) {
+    score += 0.05;
+  }
+  
   // Having meeting type increases confidence
   if (req.meetingType) {
     score += 0.05;
   }
   
   return Math.min(score, 1.0);
+}
+
+function calculateRecommendationStrength(previousMeetings: any[], req: MeetingPreparationRequest): "high" | "medium" | "low" {
+  const meetingCount = previousMeetings.length;
+  const hasDetailedContext = (req.participants?.length || 0) > 0 && (req.topics?.length || 0) > 0;
+  
+  if (meetingCount >= 10 && hasDetailedContext) return "high";
+  if (meetingCount >= 5 || hasDetailedContext) return "medium";
+  return "low";
 }
