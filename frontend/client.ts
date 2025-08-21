@@ -97,6 +97,11 @@ import {
     semanticSearch as api_ai_cohere_semanticSearch
 } from "~backend/ai/cohere";
 import { detectLanguage as api_ai_detect_language_detectLanguage } from "~backend/ai/detect_language";
+import {
+    analyzeMeetingPatterns as api_ai_meeting_preparation_analyzeMeetingPatterns,
+    generateMeetingTemplate as api_ai_meeting_preparation_generateMeetingTemplate,
+    prepareMeeting as api_ai_meeting_preparation_prepareMeeting
+} from "~backend/ai/meeting_preparation";
 import { generateSmartInsights as api_ai_smart_insights_generateSmartInsights } from "~backend/ai/smart_insights";
 import { summarize as api_ai_summarize_summarize } from "~backend/ai/summarize";
 import { transcribe as api_ai_transcribe_transcribe } from "~backend/ai/transcribe";
@@ -115,6 +120,7 @@ export namespace ai {
         constructor(baseClient: BaseClient) {
             this.baseClient = baseClient
             this.advancedAnalysis = this.advancedAnalysis.bind(this)
+            this.analyzeMeetingPatterns = this.analyzeMeetingPatterns.bind(this)
             this.analyzeTranscript = this.analyzeTranscript.bind(this)
             this.chat = this.chat.bind(this)
             this.classify = this.classify.bind(this)
@@ -122,9 +128,11 @@ export namespace ai {
             this.detectLanguage = this.detectLanguage.bind(this)
             this.executeWorkflows = this.executeWorkflows.bind(this)
             this.generate = this.generate.bind(this)
+            this.generateMeetingTemplate = this.generateMeetingTemplate.bind(this)
             this.generateSmartInsights = this.generateSmartInsights.bind(this)
             this.generateSmartTemplate = this.generateSmartTemplate.bind(this)
             this.listWorkflows = this.listWorkflows.bind(this)
+            this.prepareMeeting = this.prepareMeeting.bind(this)
             this.semanticSearch = this.semanticSearch.bind(this)
             this.summarize = this.summarize.bind(this)
             this.transcribe = this.transcribe.bind(this)
@@ -137,6 +145,15 @@ export namespace ai {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/ai/advanced-analysis`, {method: "POST", body: JSON.stringify(params)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_ai_advanced_analysis_advancedAnalysis>
+        }
+
+        /**
+         * Analyzes meeting patterns and provides insights for better meeting planning.
+         */
+        public async analyzeMeetingPatterns(params: RequestType<typeof api_ai_meeting_preparation_analyzeMeetingPatterns>): Promise<ResponseType<typeof api_ai_meeting_preparation_analyzeMeetingPatterns>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/ai/analyze-meeting-patterns`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_ai_meeting_preparation_analyzeMeetingPatterns>
         }
 
         /**
@@ -203,6 +220,15 @@ export namespace ai {
         }
 
         /**
+         * Generates meeting templates based on type and requirements.
+         */
+        public async generateMeetingTemplate(params: RequestType<typeof api_ai_meeting_preparation_generateMeetingTemplate>): Promise<ResponseType<typeof api_ai_meeting_preparation_generateMeetingTemplate>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/ai/generate-meeting-template`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_ai_meeting_preparation_generateMeetingTemplate>
+        }
+
+        /**
          * Generates smart insights and predictions based on user's meeting patterns and content.
          */
         public async generateSmartInsights(params: RequestType<typeof api_ai_smart_insights_generateSmartInsights>): Promise<ResponseType<typeof api_ai_smart_insights_generateSmartInsights>> {
@@ -227,6 +253,15 @@ export namespace ai {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/ai/workflows`, {method: "GET", body: undefined})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_ai_workflow_automation_listWorkflows>
+        }
+
+        /**
+         * Generates comprehensive meeting preparation materials using AI analysis of previous meetings.
+         */
+        public async prepareMeeting(params: RequestType<typeof api_ai_meeting_preparation_prepareMeeting>): Promise<ResponseType<typeof api_ai_meeting_preparation_prepareMeeting>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/ai/prepare-meeting`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_ai_meeting_preparation_prepareMeeting>
         }
 
         /**

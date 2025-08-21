@@ -18,6 +18,7 @@ const ProjectsPage = React.lazy(() => import("./pages/ProjectsPage"));
 const AdvancedAnalyticsPage = React.lazy(() => import("./pages/AdvancedAnalyticsPage"));
 const WorkflowsPage = React.lazy(() => import("./pages/WorkflowsPage"));
 const TemplatesPage = React.lazy(() => import("./pages/TemplatesPage"));
+const MeetingPreparationPage = React.lazy(() => import("./pages/MeetingPreparationPage"));
 const SettingsPage = React.lazy(() => import("./pages/SettingsPage"));
 
 const queryClient = new QueryClient({
@@ -58,6 +59,7 @@ function AppContent() {
           <Route path="/analytics" element={<AdvancedAnalyticsPage />} />
           <Route path="/workflows" element={<WorkflowsPage />} />
           <Route path="/templates" element={<TemplatesPage />} />
+          <Route path="/meeting-prep" element={<MeetingPreparationPage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Routes>
       </Suspense>

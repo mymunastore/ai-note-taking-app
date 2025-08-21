@@ -188,6 +188,28 @@ export function useBackend() {
           }
         }
       },
+      
+      prepareMeeting: async (params: any, retries = 3) => {
+        for (let i = 0; i < retries; i++) {
+          try {
+            return await backend.ai.prepareMeeting(params);
+          } catch (error) {
+            if (i === retries - 1) throw error;
+            await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+          }
+        }
+      },
+      
+      analyzeMeetingPatterns: async (params: any, retries = 3) => {
+        for (let i = 0; i < retries; i++) {
+          try {
+            return await backend.ai.analyzeMeetingPatterns(params);
+          } catch (error) {
+            if (i === retries - 1) throw error;
+            await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+          }
+        }
+      },
     },
     
     // Enhanced notes methods with retry logic
