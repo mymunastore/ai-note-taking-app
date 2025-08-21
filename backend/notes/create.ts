@@ -1,11 +1,14 @@
 import { api, APIError } from "encore.dev/api";
+import { getAuthData } from "~encore/auth";
 import { notesDB } from "./db";
 import type { CreateNoteRequest, Note } from "./types";
 
 // Creates a new note with transcript and summary.
 export const createNote = api<CreateNoteRequest, Note>(
-  { expose: true, method: "POST", path: "/notes" },
+  { auth: true, expose: true, method: "POST", path: "/notes" },
   async (req) => {
+    const auth = getAuthData()!;
+    
     try {
       if (!req.title || req.title.trim().length === 0) {
         throw APIError.invalidArgument("Title is required");
@@ -27,6 +30,29 @@ export const createNote = api<CreateNoteRequest, Note>(
         throw APIError.invalidArgument("Tags must be an array");
       }
 
+      // Check usage limits for free plan
+      if (auth.plan === "free") {
+        const currentMonth = new Date();
+        currentMonth.setDate(1);
+        currentMonth.setHours(0, 0, 0, 0);
+        
+        const usage = await notesDB.queryRow<{ count: number; minutes: number }>`
+          SELECT 
+            COUNT(*) as count,
+            COALESCE(SUM(duration), 0) / 60 as minutes
+          FROM notes 
+          WHERE user_id = ${auth.userID} AND created_at >= ${currentMonth}
+        `;
+        
+        if (usage && usage.count >= 10) {
+          throw APIError.resourceExhausted("Free plan limit reached. Upgrade to Pro for unlimited recordings.");
+        }
+        
+        if (usage && usage.minutes + (req.duration / 60) > 60) {
+          throw APIError.resourceExhausted("Free plan transcription limit reached. Upgrade to Pro for unlimited transcription.");
+        }
+      }
+
       const sanitizedTags = req.tags ? req.tags
         .filter(tag => tag && typeof tag === 'string' && tag.trim().length > 0)
         .map(tag => tag.trim())
@@ -44,12 +70,13 @@ export const createNote = api<CreateNoteRequest, Note>(
         is_public: boolean;
         tags: string[];
         project_id: number | null;
+        user_id: string;
         created_at: Date;
         updated_at: Date;
       }>`
-        INSERT INTO notes (title, transcript, summary, duration, original_language, translated, is_public, tags, project_id)
-        VALUES (${req.title.trim()}, ${req.transcript.trim()}, ${req.summary.trim()}, ${req.duration}, ${req.originalLanguage || null}, ${req.translated || false}, ${req.isPublic || false}, ${sanitizedTags}, ${req.projectId || null})
-        RETURNING id, title, transcript, summary, duration, original_language, translated, is_public, tags, project_id, created_at, updated_at
+        INSERT INTO notes (title, transcript, summary, duration, original_language, translated, is_public, tags, project_id, user_id)
+        VALUES (${req.title.trim()}, ${req.transcript.trim()}, ${req.summary.trim()}, ${req.duration}, ${req.originalLanguage || null}, ${req.translated || false}, ${req.isPublic || false}, ${sanitizedTags}, ${req.projectId || null}, ${auth.userID})
+        RETURNING id, title, transcript, summary, duration, original_language, translated, is_public, tags, project_id, user_id, created_at, updated_at
       `;
 
       if (!row) {
@@ -67,6 +94,7 @@ export const createNote = api<CreateNoteRequest, Note>(
         isPublic: row.is_public,
         tags: row.tags || [],
         projectId: row.project_id || undefined,
+        userId: row.user_id,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
       };

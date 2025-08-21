@@ -9,6 +9,7 @@ export interface Note {
   isPublic: boolean;
   tags: string[];
   projectId?: number;
+  userId: string;
   createdAt: Date;
   updatedAt: Date;
 }

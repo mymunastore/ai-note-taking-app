@@ -1,9 +1,13 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Mic, Settings, Moon, Sun, Home, Activity, Brain } from "lucide-react";
+import { Mic, Settings, Moon, Sun, Home, Activity, Brain, CreditCard, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useTheme } from "../contexts/ThemeContext";
+import { useAuth } from "../contexts/AuthContext";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -12,13 +16,23 @@ interface LayoutProps {
 export default function Layout({ children }: LayoutProps) {
   const location = useLocation();
   const { theme, toggleTheme } = useTheme();
+  const { user, isSignedIn, signOut, isPremium } = useAuth();
 
   const navItems = [
     { path: "/", icon: Home, label: "Dashboard" },
     { path: "/record", icon: Mic, label: "Record" },
     { path: "/live", icon: Activity, label: "Live Transcription" },
+    { path: "/billing", icon: CreditCard, label: "Billing" },
     { path: "/settings", icon: Settings, label: "Settings" },
   ];
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error("Sign out error:", error);
+    }
+  };
 
   return (
     <div className="flex h-screen bg-background">
@@ -63,7 +77,58 @@ export default function Layout({ children }: LayoutProps) {
           </ul>
         </nav>
 
-        <div className="p-4 border-t border-border">
+        <div className="p-4 border-t border-border space-y-3">
+          {isSignedIn && user && (
+            <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+              <Avatar className="w-8 h-8">
+                <AvatarImage src={user.imageUrl} alt={user.firstName || "User"} />
+                <AvatarFallback>
+                  {user.firstName?.[0] || user.email?.[0]?.toUpperCase() || "U"}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium text-foreground truncate">
+                    {user.firstName || user.email}
+                  </p>
+                  {isPremium && (
+                    <Badge className="bg-gradient-to-r from-yellow-100 to-orange-100 text-yellow-800 dark:from-yellow-950/50 dark:to-orange-950/50 dark:text-yellow-300 text-xs">
+                      Pro
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground truncate">
+                  {user.email}
+                </p>
+              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="w-8 h-8 p-0">
+                    <User className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem asChild>
+                    <Link to="/billing" className="w-full">
+                      <CreditCard className="w-4 h-4 mr-2" />
+                      Billing & Usage
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/settings" className="w-full">
+                      <Settings className="w-4 h-4 mr-2" />
+                      Settings
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleSignOut}>
+                    Sign Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )}
+          
           <Button
             variant="ghost"
             size="sm"

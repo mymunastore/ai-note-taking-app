@@ -1,11 +1,27 @@
 import { api, APIError } from "encore.dev/api";
+import { getAuthData } from "~encore/auth";
 import { notesDB } from "./db";
 import type { UpdateNoteRequest, Note } from "./types";
 
 // Updates an existing note.
 export const updateNote = api<UpdateNoteRequest, Note>(
-  { expose: true, method: "PUT", path: "/notes/:id" },
+  { auth: true, expose: true, method: "PUT", path: "/notes/:id" },
   async (req) => {
+    const auth = getAuthData()!;
+    
+    // Verify ownership
+    const existingNote = await notesDB.queryRow<{ user_id: string }>`
+      SELECT user_id FROM notes WHERE id = ${req.id}
+    `;
+    
+    if (!existingNote) {
+      throw APIError.notFound("Note not found");
+    }
+    
+    if (existingNote.user_id !== auth.userID) {
+      throw APIError.permissionDenied("You can only update your own notes");
+    }
+    
     const updates: string[] = [];
     const params: any[] = [];
     let paramIndex = 1;
@@ -52,7 +68,7 @@ export const updateNote = api<UpdateNoteRequest, Note>(
       SET ${updates.join(", ")}
       WHERE id = $${paramIndex}
       RETURNING id, title, transcript, summary, duration, original_language, translated,
-                is_public, tags, project_id, created_at, updated_at
+                is_public, tags, project_id, user_id, created_at, updated_at
     `;
 
     const row = await notesDB.rawQueryRow<{
@@ -66,6 +82,7 @@ export const updateNote = api<UpdateNoteRequest, Note>(
       is_public: boolean;
       tags: string[];
       project_id: number | null;
+      user_id: string;
       created_at: Date;
       updated_at: Date;
     }>(query, ...params);
@@ -85,6 +102,7 @@ export const updateNote = api<UpdateNoteRequest, Note>(
       isPublic: row.is_public,
       tags: row.tags,
       projectId: row.project_id || undefined,
+      userId: row.user_id,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
