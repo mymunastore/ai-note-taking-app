@@ -1,5 +1,4 @@
 import { api } from "encore.dev/api";
-import { getAuthData } from "~encore/auth";
 import { notesDB } from "./db";
 
 interface AnalyticsResponse {
@@ -29,10 +28,8 @@ interface AnalyticsResponse {
 
 // Provides analytics and insights about user's recordings.
 export const getAnalytics = api<void, AnalyticsResponse>(
-  { expose: true, method: "GET", path: "/notes/analytics", auth: true },
+  { expose: true, method: "GET", path: "/notes/analytics" },
   async () => {
-    const auth = getAuthData()!;
-
     try {
       // Get basic statistics
       const basicStats = await notesDB.queryRow<{
@@ -45,7 +42,6 @@ export const getAnalytics = api<void, AnalyticsResponse>(
           SUM(duration) as total_duration,
           AVG(duration) as average_duration
         FROM notes
-        WHERE user_id = ${auth.userID}
       `;
 
       // Get language breakdown
@@ -57,7 +53,6 @@ export const getAnalytics = api<void, AnalyticsResponse>(
           COALESCE(original_language, 'en') as language,
           COUNT(*) as count
         FROM notes
-        WHERE user_id = ${auth.userID}
         GROUP BY COALESCE(original_language, 'en')
         ORDER BY count DESC
       `;
@@ -79,7 +74,7 @@ export const getAnalytics = api<void, AnalyticsResponse>(
           unnest(tags) as tag,
           COUNT(*) as count
         FROM notes
-        WHERE user_id = ${auth.userID} AND array_length(tags, 1) > 0
+        WHERE array_length(tags, 1) > 0
         GROUP BY unnest(tags)
         ORDER BY count DESC
         LIMIT 10
@@ -96,8 +91,7 @@ export const getAnalytics = api<void, AnalyticsResponse>(
           COUNT(*) as recordings,
           SUM(duration) as duration
         FROM notes
-        WHERE user_id = ${auth.userID}
-        AND created_at >= NOW() - INTERVAL '6 months'
+        WHERE created_at >= NOW() - INTERVAL '6 months'
         GROUP BY TO_CHAR(created_at, 'YYYY-MM')
         ORDER BY month DESC
       `;
@@ -114,7 +108,6 @@ export const getAnalytics = api<void, AnalyticsResponse>(
           COUNT(*) FILTER (WHERE created_at >= DATE_TRUNC('month', NOW()) - INTERVAL '1 month' 
                           AND created_at < DATE_TRUNC('month', NOW())) as last_month
         FROM notes
-        WHERE user_id = ${auth.userID}
       `;
 
       return {

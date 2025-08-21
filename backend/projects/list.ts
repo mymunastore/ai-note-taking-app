@@ -1,18 +1,14 @@
 import { api } from "encore.dev/api";
-import { getAuthData } from "~encore/auth";
 import { projectsDB } from "./db";
 import type { ListProjectsResponse, Project } from "./types";
 
 // Lists all projects for the current user or organization.
 export const list = api<void, ListProjectsResponse>(
-  { expose: true, method: "GET", path: "/projects", auth: true },
+  { expose: true, method: "GET", path: "/projects" },
   async () => {
-    const auth = getAuthData()!;
-    
     const projects = await projectsDB.queryAll<Project>`
       SELECT id, name, description, user_id, organization_id, created_at, updated_at
       FROM projects
-      WHERE user_id = ${auth.userID} OR organization_id = ${auth.organizationId}
       ORDER BY created_at DESC
     `;
 

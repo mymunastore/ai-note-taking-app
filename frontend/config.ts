@@ -1,14 +1,10 @@
-// Clerk configuration
-export const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || "pk_test_Y2xhc3NpYy1pYmV4LTYuY2xlcmsuYWNjb3VudHMuZGV2JA";
-
-// Auth0 configuration (for additional SSO options)
-export const auth0Domain = import.meta.env.VITE_AUTH0_DOMAIN || "";
-export const auth0ClientId = import.meta.env.VITE_AUTH0_CLIENT_ID || "";
-
-// Application URLs
+// Application configuration
 export const appUrl = import.meta.env.VITE_APP_URL || "http://localhost:5173";
 export const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:4000";
 
 // Feature flags
 export const enableWorkflows = import.meta.env.VITE_ENABLE_WORKFLOWS === "true";
 export const enableCohere = import.meta.env.VITE_ENABLE_COHERE === "true";
+
+// Demo mode configuration
+export const isDemoMode = true;

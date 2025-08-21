@@ -1,9 +1,17 @@
 import { api, APIError } from "encore.dev/api";
 import { secret } from "encore.dev/config";
-import type { TranscribeRequest, TranscribeResponse } from "../notes/types";
 
 const openAIKey = secret("OpenAIKey");
-const cohereApiKey = secret("CohereApiKey");
+
+interface TranscribeRequest {
+  audioBase64: string;
+}
+
+interface TranscribeResponse {
+  transcript: string;
+  originalLanguage?: string;
+  translated?: boolean;
+}
 
 // Transcribes audio to text using OpenAI Whisper API with automatic language detection and English translation.
 export const transcribe = api<TranscribeRequest, TranscribeResponse>(

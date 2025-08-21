@@ -1,14 +1,11 @@
 import { api } from "encore.dev/api";
-import { getAuthData } from "~encore/auth";
 import { notesDB } from "./db";
 import type { CreateNoteRequest, Note } from "./types";
 
 // Creates a new note with transcript and summary.
 export const create = api<CreateNoteRequest, Note>(
-  { expose: true, method: "POST", path: "/notes", auth: true },
+  { expose: true, method: "POST", path: "/notes" },
   async (req) => {
-    const auth = getAuthData()!;
-    
     const row = await notesDB.queryRow<{
       id: number;
       title: string;
@@ -26,7 +23,7 @@ export const create = api<CreateNoteRequest, Note>(
       updated_at: Date;
     }>`
       INSERT INTO notes (title, transcript, summary, duration, original_language, translated, user_id, organization_id, is_public, tags, project_id)
-      VALUES (${req.title}, ${req.transcript}, ${req.summary}, ${req.duration}, ${req.originalLanguage || null}, ${req.translated || false}, ${auth.userID}, ${auth.organizationId || null}, ${req.isPublic || false}, ${req.tags || []}, ${req.projectId || null})
+      VALUES (${req.title}, ${req.transcript}, ${req.summary}, ${req.duration}, ${req.originalLanguage || null}, ${req.translated || false}, ${'anonymous'}, ${null}, ${req.isPublic || false}, ${req.tags || []}, ${req.projectId || null})
       RETURNING id, title, transcript, summary, duration, original_language, translated, user_id, organization_id, is_public, tags, project_id, created_at, updated_at
     `;
 

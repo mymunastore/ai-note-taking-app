@@ -1,9 +1,18 @@
 import { api, APIError } from "encore.dev/api";
 import { secret } from "encore.dev/config";
-import type { SummarizeRequest, SummarizeResponse } from "../notes/types";
 
 const cohereApiKey = secret("CohereApiKey");
 const openAIKey = secret("OpenAIKey");
+
+interface SummarizeRequest {
+  transcript: string;
+  length?: "short" | "medium" | "long";
+  format?: "paragraph" | "bullets";
+}
+
+interface SummarizeResponse {
+  summary: string;
+}
 
 // Generates a summary of the provided transcript using Cohere or OpenAI.
 export const summarize = api<SummarizeRequest, SummarizeResponse>(

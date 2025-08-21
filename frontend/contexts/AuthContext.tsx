@@ -1,5 +1,4 @@
 import React, { createContext, useContext, ReactNode } from "react";
-import { useUser, useAuth as useClerkAuth, useOrganization } from "@clerk/clerk-react";
 import backend from "~backend/client";
 
 interface AuthContextType {
@@ -19,18 +18,26 @@ interface AuthProviderProps {
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
-  const { user, isLoaded } = useUser();
-  const { isSignedIn, signOut, getToken } = useClerkAuth();
-  const { organization, membership } = useOrganization();
+  // Mock user data for demo purposes
+  const mockUser = {
+    id: "user_123",
+    firstName: "Demo",
+    lastName: "User",
+    imageUrl: "",
+    emailAddresses: [{ emailAddress: "demo@example.com" }]
+  };
 
   const value: AuthContextType = {
-    user,
-    isLoaded,
-    isSignedIn: isSignedIn || false,
-    signOut,
-    getToken,
-    organization,
-    membership,
+    user: mockUser,
+    isLoaded: true,
+    isSignedIn: true,
+    signOut: async () => {
+      // Mock sign out
+      console.log("Signing out...");
+    },
+    getToken: async () => null,
+    organization: null,
+    membership: null,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -44,16 +51,7 @@ export function useAuth() {
   return context;
 }
 
-// Returns the backend client with authentication.
+// Returns the backend client without authentication for demo.
 export function useBackend() {
-  const { getToken, isSignedIn } = useAuth();
-  
-  if (!isSignedIn) return backend;
-  
-  return backend.with({
-    auth: async () => {
-      const token = await getToken();
-      return token ? { authorization: `Bearer ${token}` } : {};
-    }
-  });
+  return backend;
 }

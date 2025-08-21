@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
-import backend from "~backend/client";
+import { useBackend } from "../contexts/AuthContext";
 import { useNotes } from "../contexts/NotesContext";
 import { formatDuration, formatDate } from "../utils/formatters";
 import ChatBot from "../components/ChatBot";
@@ -16,6 +16,7 @@ import ChatBot from "../components/ChatBot";
 export default function NoteDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const backend = useBackend();
   const { updateNote, deleteNote } = useNotes();
   const { toast } = useToast();
   

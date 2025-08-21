@@ -1,5 +1,4 @@
 import { api, APIError } from "encore.dev/api";
-import { getAuthData } from "~encore/auth";
 import { notesDB } from "./db";
 import type { Note } from "./types";
 
@@ -9,10 +8,8 @@ interface GetNoteParams {
 
 // Retrieves a specific note by ID.
 export const get = api<GetNoteParams, Note>(
-  { expose: true, method: "GET", path: "/notes/:id", auth: true },
+  { expose: true, method: "GET", path: "/notes/:id" },
   async (params) => {
-    const auth = getAuthData()!;
-    
     const row = await notesDB.queryRow<{
       id: number;
       title: string;
@@ -32,7 +29,7 @@ export const get = api<GetNoteParams, Note>(
       SELECT id, title, transcript, summary, duration, original_language, translated, 
              user_id, organization_id, is_public, tags, project_id, created_at, updated_at
       FROM notes
-      WHERE id = ${params.id} AND (user_id = ${auth.userID} OR is_public = true)
+      WHERE id = ${params.id}
     `;
 
     if (!row) {

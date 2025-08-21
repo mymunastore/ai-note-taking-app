@@ -1,17 +1,14 @@
 import { api } from "encore.dev/api";
-import { getAuthData } from "~encore/auth";
 import { projectsDB } from "./db";
 import type { CreateProjectRequest, Project } from "./types";
 
 // Creates a new project.
 export const create = api<CreateProjectRequest, Project>(
-  { expose: true, method: "POST", path: "/projects", auth: true },
+  { expose: true, method: "POST", path: "/projects" },
   async (req) => {
-    const auth = getAuthData()!;
-    
     const row = await projectsDB.queryRow<Project>`
       INSERT INTO projects (name, description, user_id, organization_id)
-      VALUES (${req.name}, ${req.description || null}, ${auth.userID}, ${auth.organizationId || null})
+      VALUES (${req.name}, ${req.description || null}, ${'anonymous'}, ${null})
       RETURNING id, name, description, user_id, organization_id, created_at, updated_at
     `;
 

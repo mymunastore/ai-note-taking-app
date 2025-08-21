@@ -11,12 +11,11 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/components/ui/use-toast";
 import { useTheme } from "../contexts/ThemeContext";
-import { useAuth, useBackend } from "../contexts/AuthContext";
+import { useAuth } from "../contexts/AuthContext";
 
 export default function ProfilePage() {
   const { theme, toggleTheme } = useTheme();
-  const { user, isLoaded } = useAuth();
-  const backend = useBackend();
+  const { user } = useAuth();
   const { toast } = useToast();
   
   const [profile, setProfile] = useState({
@@ -27,7 +26,7 @@ export default function ProfilePage() {
   });
 
   useEffect(() => {
-    if (isLoaded && user) {
+    if (user) {
       setProfile({
         firstName: user.firstName || "",
         lastName: user.lastName || "",
@@ -35,7 +34,7 @@ export default function ProfilePage() {
         avatar: user.imageUrl || "",
       });
     }
-  }, [isLoaded, user]);
+  }, [user]);
 
   const [notifications, setNotifications] = useState({
     transcriptionComplete: true,
@@ -55,10 +54,6 @@ export default function ProfilePage() {
 
   const handleProfileUpdate = async () => {
     try {
-      await backend.auth.updateProfile({
-        firstName: profile.firstName,
-        lastName: profile.lastName,
-      });
       toast({
         title: "Profile Updated",
         description: "Your profile has been successfully updated.",
@@ -76,8 +71,6 @@ export default function ProfilePage() {
   const handleAvatarUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      // In a real app, you would upload this file to a service and then update the user's profile URL
-      // For this demo, we'll just show a preview
       const reader = new FileReader();
       reader.onload = (e) => {
         setProfile(prev => ({ ...prev, avatar: e.target?.result as string }));
@@ -93,10 +86,6 @@ export default function ProfilePage() {
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
   };
-
-  if (!isLoaded) {
-    return <div>Loading...</div>;
-  }
 
   return (
     <div className="p-6">

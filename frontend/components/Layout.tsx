@@ -1,9 +1,8 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Mic, FileText, Settings, Moon, Sun, Leaf, FolderOpen, User, Home, LogOut } from "lucide-react";
+import { Mic, Settings, Moon, Sun, Leaf, FolderOpen, User, Home, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { useTheme } from "../contexts/ThemeContext";
 import { useAuth } from "../contexts/AuthContext";
@@ -15,7 +14,7 @@ interface LayoutProps {
 export default function Layout({ children }: LayoutProps) {
   const location = useLocation();
   const { theme, toggleTheme } = useTheme();
-  const { user, signOut, organization } = useAuth();
+  const { user } = useAuth();
 
   const navItems = [
     { path: "/", icon: Home, label: "Dashboard" },
@@ -23,10 +22,6 @@ export default function Layout({ children }: LayoutProps) {
     { path: "/projects", icon: FolderOpen, label: "Projects" },
     { path: "/settings", icon: Settings, label: "Settings" },
   ];
-
-  const handleSignOut = async () => {
-    await signOut();
-  };
 
   return (
     <div className="flex h-screen bg-background">
@@ -40,14 +35,6 @@ export default function Layout({ children }: LayoutProps) {
             <h1 className="text-xl font-semibold text-foreground">SCRIBE AI</h1>
           </Link>
           <p className="text-sm text-muted-foreground">AI-powered note taker</p>
-          
-          {organization && (
-            <div className="mt-3 p-2 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/20 dark:to-teal-950/20 rounded-lg border border-emerald-200 dark:border-emerald-800">
-              <p className="text-xs font-medium text-emerald-700 dark:text-emerald-300">
-                {organization.name}
-              </p>
-            </div>
-          )}
         </div>
         
         <nav className="flex-1 p-4">
@@ -91,40 +78,23 @@ export default function Layout({ children }: LayoutProps) {
             {theme === "light" ? "Dark Mode" : "Light Mode"}
           </Button>
 
-          {/* User Menu */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="w-full justify-start p-2">
-                <Avatar className="w-8 h-8 mr-3">
-                  <AvatarImage src={user?.imageUrl} />
-                  <AvatarFallback className="bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-950/50 dark:to-teal-950/50 text-emerald-700 dark:text-emerald-300">
-                    {user?.firstName?.[0]}{user?.lastName?.[0]}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 text-left">
-                  <p className="text-sm font-medium text-foreground">
-                    {user?.firstName} {user?.lastName}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {user?.emailAddresses?.[0]?.emailAddress}
-                  </p>
-                </div>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuItem asChild>
-                <Link to="/profile" className="flex items-center">
-                  <User className="w-4 h-4 mr-2" />
-                  Profile
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleSignOut} className="text-red-600">
-                <LogOut className="w-4 h-4 mr-2" />
-                Sign Out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {/* User Info */}
+          <div className="flex items-center gap-3 p-2">
+            <Avatar className="w-8 h-8">
+              <AvatarImage src={user?.imageUrl} />
+              <AvatarFallback className="bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-950/50 dark:to-teal-950/50 text-emerald-700 dark:text-emerald-300">
+                {user?.firstName?.[0]}{user?.lastName?.[0]}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 text-left">
+              <p className="text-sm font-medium text-foreground">
+                {user?.firstName} {user?.lastName}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {user?.emailAddresses?.[0]?.emailAddress}
+              </p>
+            </div>
+          </div>
         </div>
       </div>
 

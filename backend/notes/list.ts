@@ -1,6 +1,5 @@
 import { api } from "encore.dev/api";
 import { Query } from "encore.dev/api";
-import { getAuthData } from "~encore/auth";
 import { notesDB } from "./db";
 import type { ListNotesResponse } from "./types";
 
@@ -15,9 +14,8 @@ interface ListNotesParams {
 
 // Retrieves all notes with optional search and pagination.
 export const list = api<ListNotesParams, ListNotesResponse>(
-  { expose: true, method: "GET", path: "/notes", auth: true },
+  { expose: true, method: "GET", path: "/notes" },
   async (params) => {
-    const auth = getAuthData()!;
     const limit = params.limit || 50;
     const offset = params.offset || 0;
     const search = params.search?.trim();
@@ -25,16 +23,9 @@ export const list = api<ListNotesParams, ListNotesResponse>(
     const organizationOnly = params.organizationOnly || false;
     const projectId = params.projectId;
 
-    let whereConditions = ["(user_id = $3 OR is_public = true)"];
-    let queryParams: any[] = [limit, offset, auth.userID];
-    let paramIndex = 4;
-
-    // Add organization filter if requested and user has organization
-    if (organizationOnly && auth.organizationId) {
-      whereConditions = ["organization_id = $3"];
-      queryParams = [limit, offset, auth.organizationId];
-      paramIndex = 4;
-    }
+    let whereConditions = ["1=1"];
+    let queryParams: any[] = [limit, offset];
+    let paramIndex = 3;
 
     // Add search condition
     if (search) {

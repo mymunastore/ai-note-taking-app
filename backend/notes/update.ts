@@ -1,13 +1,11 @@
 import { api, APIError } from "encore.dev/api";
-import { getAuthData } from "~encore/auth";
 import { notesDB } from "./db";
 import type { UpdateNoteRequest, Note } from "./types";
 
 // Updates an existing note.
 export const update = api<UpdateNoteRequest, Note>(
-  { expose: true, method: "PUT", path: "/notes/:id", auth: true },
+  { expose: true, method: "PUT", path: "/notes/:id" },
   async (req) => {
-    const auth = getAuthData()!;
     const updates: string[] = [];
     const params: any[] = [];
     let paramIndex = 1;
@@ -48,12 +46,11 @@ export const update = api<UpdateNoteRequest, Note>(
 
     updates.push(`updated_at = NOW()`);
     params.push(req.id);
-    params.push(auth.userID);
 
     const query = `
       UPDATE notes 
       SET ${updates.join(", ")}
-      WHERE id = $${paramIndex++} AND user_id = $${paramIndex}
+      WHERE id = $${paramIndex}
       RETURNING id, title, transcript, summary, duration, original_language, translated,
                 user_id, organization_id, is_public, tags, project_id, created_at, updated_at
     `;
@@ -76,7 +73,7 @@ export const update = api<UpdateNoteRequest, Note>(
     }>(query, ...params);
 
     if (!row) {
-      throw APIError.notFound("note not found or access denied");
+      throw APIError.notFound("note not found");
     }
 
     return {

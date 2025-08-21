@@ -1,7 +1,6 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ClerkProvider, SignedIn, SignedOut } from "@clerk/clerk-react";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "./contexts/AuthContext";
 import { NotesProvider } from "./contexts/NotesContext";
@@ -18,9 +17,6 @@ import ProjectsPage from "./pages/ProjectsPage";
 import ProfilePage from "./pages/ProfilePage";
 import SettingsPage from "./pages/SettingsPage";
 import PricingPage from "./pages/PricingPage";
-import SignInPage from "./pages/SignInPage";
-import SignUpPage from "./pages/SignUpPage";
-import { clerkPublishableKey } from "./config";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -40,76 +36,51 @@ function AppContent() {
     return <HomePage />;
   }
 
-  return (
-    <>
-      <SignedOut>
-        <Routes>
-          <Route path="/sign-in" element={<SignInPage />} />
-          <Route path="/sign-up" element={<SignUpPage />} />
-          <Route path="/pricing" element={<PricingPage />} />
-          <Route path="*" element={<HomePage />} />
-        </Routes>
-      </SignedOut>
-      
-      <SignedIn>
-        {!hasCompletedOnboarding ? (
-          <Routes>
-            <Route path="/onboarding" element={<OnboardingPage />} />
-            <Route path="*" element={<OnboardingPage />} />
-          </Routes>
-        ) : (
-          <Layout>
-            <Routes>
-              <Route path="/" element={<NotesListPage />} />
-              <Route path="/home" element={<HomePage />} />
-              <Route path="/onboarding" element={<OnboardingPage />} />
-              <Route path="/note/:id" element={<NoteDetailPage />} />
-              <Route path="/record" element={<RecordingPage />} />
-              <Route path="/projects" element={<ProjectsPage />} />
-              <Route path="/profile" element={<ProfilePage />} />
-              <Route path="/settings" element={<SettingsPage />} />
-              <Route path="/pricing" element={<PricingPage />} />
-            </Routes>
-            <ChatBot />
-          </Layout>
-        )}
-      </SignedIn>
-    </>
-  );
-}
-
-export default function App() {
-  if (!clerkPublishableKey) {
+  // Show onboarding if not completed
+  if (!hasCompletedOnboarding) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-foreground mb-4">Configuration Required</h1>
-          <p className="text-muted-foreground">
-            Please set your Clerk publishable key in the environment variables.
-          </p>
-        </div>
-      </div>
+      <Routes>
+        <Route path="/onboarding" element={<OnboardingPage />} />
+        <Route path="*" element={<OnboardingPage />} />
+      </Routes>
     );
   }
 
   return (
-    <ClerkProvider publishableKey={clerkPublishableKey}>
-      <QueryClientProvider client={queryClient}>
-        <ThemeProvider>
-          <AuthProvider>
-            <NotesProvider>
-              <RecordingProvider>
-                <Router>
-                  <div className="min-h-screen bg-background transition-colors duration-300">
-                    <AppContent />
-                    <Toaster />
-                  </div>
-                </Router>
-              </RecordingProvider>
-            </NotesProvider>
-          </AuthProvider>
-        </ThemeProvider>
-      </QueryClientProvider>
-    </ClerkProvider>
+    <Layout>
+      <Routes>
+        <Route path="/" element={<NotesListPage />} />
+        <Route path="/home" element={<HomePage />} />
+        <Route path="/onboarding" element={<OnboardingPage />} />
+        <Route path="/note/:id" element={<NoteDetailPage />} />
+        <Route path="/record" element={<RecordingPage />} />
+        <Route path="/projects" element={<ProjectsPage />} />
+        <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/pricing" element={<PricingPage />} />
+      </Routes>
+      <ChatBot />
+    </Layout>
+  );
+}
+
+export default function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <AuthProvider>
+          <NotesProvider>
+            <RecordingProvider>
+              <Router>
+                <div className="min-h-screen bg-background transition-colors duration-300">
+                  <AppContent />
+                  <Toaster />
+                </div>
+              </Router>
+            </RecordingProvider>
+          </NotesProvider>
+        </AuthProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
   );
 }

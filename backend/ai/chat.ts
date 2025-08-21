@@ -1,9 +1,18 @@
 import { api, APIError } from "encore.dev/api";
 import { secret } from "encore.dev/config";
-import type { ChatRequest, ChatResponse } from "../notes/types";
 
 const cohereApiKey = secret("CohereApiKey");
 const openAIKey = secret("OpenAIKey");
+
+interface ChatRequest {
+  message: string;
+  context?: string;
+  chatHistory?: Array<{ role: "USER" | "CHATBOT"; message: string }>;
+}
+
+interface ChatResponse {
+  response: string;
+}
 
 // Provides AI-powered chat assistance for notes and recordings using Cohere or OpenAI.
 export const chat = api<ChatRequest, ChatResponse>(
