@@ -105,7 +105,7 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        {isDemoMode || !clerkPublishableKey ? (
+        {isDemoMode ? (
           <AppWithAuth />
         ) : (
           <ClerkProvider publishableKey={clerkPublishableKey}>

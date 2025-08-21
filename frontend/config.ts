@@ -12,5 +12,5 @@ export const stripePublishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY 
 export const enableWorkflows = import.meta.env.VITE_ENABLE_WORKFLOWS === "true";
 export const enableCohere = import.meta.env.VITE_ENABLE_COHERE === "true";
 
-// Demo mode configuration
-export const isDemoMode = import.meta.env.VITE_DEMO_MODE === "true" || !clerkPublishableKey;
+// Demo mode configuration - enable if no valid Clerk key is provided
+export const isDemoMode = import.meta.env.VITE_DEMO_MODE === "true" || !clerkPublishableKey || clerkPublishableKey.length < 10;

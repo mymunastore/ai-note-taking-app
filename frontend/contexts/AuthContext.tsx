@@ -30,8 +30,8 @@ interface AuthProviderProps {
 
 export function AuthProvider({ children }: AuthProviderProps) {
   // Use Clerk hooks only if not in demo mode
-  const clerkUser = isDemoMode ? null : useUser();
-  const clerkAuth = isDemoMode ? null : useClerkAuth();
+  const clerkUser = isDemoMode ? { user: null, isLoaded: true } : useUser();
+  const clerkAuth = isDemoMode ? { isSignedIn: false, signOut: async () => {}, getToken: async () => null } : useClerkAuth();
 
   // Demo mode user
   const demoUser = isDemoMode ? {
