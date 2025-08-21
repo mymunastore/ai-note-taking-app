@@ -1,7 +1,9 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Mic, FileText, Settings } from "lucide-react";
+import { Mic, FileText, Settings, Moon, Sun, Leaf } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useTheme } from "../contexts/ThemeContext";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -9,6 +11,7 @@ interface LayoutProps {
 
 export default function Layout({ children }: LayoutProps) {
   const location = useLocation();
+  const { theme, toggleTheme } = useTheme();
 
   const navItems = [
     { path: "/", icon: FileText, label: "Notes" },
@@ -17,12 +20,17 @@ export default function Layout({ children }: LayoutProps) {
   ];
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-background">
       {/* Sidebar */}
-      <div className="w-64 bg-white border-r border-gray-200 flex flex-col">
-        <div className="p-6 border-b border-gray-200">
-          <h1 className="text-xl font-semibold text-gray-900">AI Notes</h1>
-          <p className="text-sm text-gray-500 mt-1">Smart meeting recorder</p>
+      <div className="w-64 bg-card border-r border-border flex flex-col shadow-sm">
+        <div className="p-6 border-b border-border">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center">
+              <Leaf className="w-5 h-5 text-white" />
+            </div>
+            <h1 className="text-xl font-semibold text-foreground">SCRIBE</h1>
+          </div>
+          <p className="text-sm text-muted-foreground">AI-powered note taker</p>
         </div>
         
         <nav className="flex-1 p-4">
@@ -36,10 +44,10 @@ export default function Layout({ children }: LayoutProps) {
                   <Link
                     to={item.path}
                     className={cn(
-                      "flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                      "flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
                       isActive
-                        ? "bg-blue-50 text-blue-700 border border-blue-200"
-                        : "text-gray-700 hover:bg-gray-100"
+                        ? "bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/50 dark:to-teal-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shadow-sm"
+                        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                     )}
                   >
                     <Icon className="w-5 h-5 mr-3" />
@@ -50,6 +58,22 @@ export default function Layout({ children }: LayoutProps) {
             })}
           </ul>
         </nav>
+
+        <div className="p-4 border-t border-border">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={toggleTheme}
+            className="w-full justify-start text-muted-foreground hover:text-foreground"
+          >
+            {theme === "light" ? (
+              <Moon className="w-4 h-4 mr-3" />
+            ) : (
+              <Sun className="w-4 h-4 mr-3" />
+            )}
+            {theme === "light" ? "Dark Mode" : "Light Mode"}
+          </Button>
+        </div>
       </div>
 
       {/* Main content */}

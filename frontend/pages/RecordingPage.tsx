@@ -1,6 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { Mic, Square, Play, Pause, Save, Loader2 } from "lucide-react";
+import { Mic, Square, Play, Pause, Save, Loader2, Sparkles, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -65,45 +65,52 @@ export default function RecordingPage() {
     <div className="p-6">
       <div className="max-w-2xl mx-auto">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Record Audio</h1>
-          <p className="text-gray-600">
+          <h1 className="text-2xl font-bold text-foreground mb-2 flex items-center justify-center gap-2">
+            <Sparkles className="w-6 h-6 text-emerald-600" />
+            Record Audio
+          </h1>
+          <p className="text-muted-foreground">
             Record meetings, phone calls, or voice notes for automatic transcription and summarization
           </p>
         </div>
 
-        <Card className="mb-6">
+        <Card className="mb-6 border-border bg-card">
           <CardHeader>
-            <CardTitle>Recording Controls</CardTitle>
+            <CardTitle className="text-foreground">Recording Controls</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Recording Status */}
             <div className="text-center">
               <div className="relative inline-flex items-center justify-center w-32 h-32 mb-4">
                 <div
-                  className={`absolute inset-0 rounded-full ${
+                  className={`absolute inset-0 rounded-full transition-all duration-300 ${
                     isRecording
                       ? isPaused
-                        ? "bg-yellow-100 border-4 border-yellow-300"
-                        : "bg-red-100 border-4 border-red-300 animate-pulse"
-                      : "bg-gray-100 border-4 border-gray-300"
+                        ? "bg-gradient-to-br from-amber-100 to-orange-100 dark:from-amber-950/50 dark:to-orange-950/50 border-4 border-amber-300 dark:border-amber-700"
+                        : "bg-gradient-to-br from-red-100 to-rose-100 dark:from-red-950/50 dark:to-rose-950/50 border-4 border-red-300 dark:border-red-700 animate-pulse"
+                      : "bg-gradient-to-br from-slate-100 to-gray-100 dark:from-slate-900/50 dark:to-gray-900/50 border-4 border-slate-300 dark:border-slate-700"
                   }`}
                 />
+                {isRecording && !isPaused && (
+                  <div className="absolute inset-2 rounded-full bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-950/30 dark:to-teal-950/30 animate-ping opacity-75" />
+                )}
                 <Mic
-                  className={`w-12 h-12 ${
+                  className={`w-12 h-12 z-10 ${
                     isRecording
                       ? isPaused
-                        ? "text-yellow-600"
+                        ? "text-amber-600"
                         : "text-red-600"
-                      : "text-gray-400"
+                      : "text-muted-foreground"
                   }`}
                 />
               </div>
               
-              <div className="text-3xl font-mono font-bold text-gray-900 mb-2">
+              <div className="text-3xl font-mono font-bold text-foreground mb-2">
                 {formatDuration(duration)}
               </div>
               
-              <div className="text-sm text-gray-500">
+              <div className="text-sm text-muted-foreground flex items-center justify-center gap-2">
+                {isRecording && !isPaused && <Activity className="w-4 h-4 animate-pulse text-emerald-600" />}
                 {isRecording
                   ? isPaused
                     ? "Recording Paused"
@@ -120,7 +127,7 @@ export default function RecordingPage() {
                 <Button
                   onClick={handleStartRecording}
                   size="lg"
-                  className="bg-red-600 hover:bg-red-700"
+                  className="bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
                 >
                   <Mic className="w-5 h-5 mr-2" />
                   Start Recording
@@ -130,18 +137,18 @@ export default function RecordingPage() {
               {isRecording && (
                 <>
                   {isPaused ? (
-                    <Button onClick={resumeRecording} size="lg" className="bg-green-600 hover:bg-green-700">
+                    <Button onClick={resumeRecording} size="lg" className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg hover:shadow-xl transition-all duration-200">
                       <Play className="w-5 h-5 mr-2" />
                       Resume
                     </Button>
                   ) : (
-                    <Button onClick={pauseRecording} size="lg" variant="outline">
+                    <Button onClick={pauseRecording} size="lg" variant="outline" className="border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-300 dark:hover:bg-amber-950/20">
                       <Pause className="w-5 h-5 mr-2" />
                       Pause
                     </Button>
                   )}
                   
-                  <Button onClick={handleStopRecording} size="lg" variant="outline">
+                  <Button onClick={handleStopRecording} size="lg" variant="outline" className="border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-900/20">
                     <Square className="w-5 h-5 mr-2" />
                     Stop
                   </Button>
@@ -150,7 +157,7 @@ export default function RecordingPage() {
 
               {audioBlob && !isProcessing && (
                 <>
-                  <Button onClick={handleDiscard} variant="outline" size="lg">
+                  <Button onClick={handleDiscard} variant="outline" size="lg" className="border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-900/20">
                     Discard
                   </Button>
                 </>
@@ -161,25 +168,29 @@ export default function RecordingPage() {
 
         {/* Save Recording */}
         {audioBlob && (
-          <Card>
+          <Card className="border-border bg-card">
             <CardHeader>
-              <CardTitle>Save Recording</CardTitle>
+              <CardTitle className="text-foreground">Save Recording</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <Label htmlFor="title">Recording Title</Label>
+                <Label htmlFor="title" className="text-foreground">Recording Title</Label>
                 <Input
                   id="title"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder={`Recording ${new Date().toLocaleDateString()}`}
                   disabled={isProcessing}
+                  className="bg-background border-border focus:border-emerald-500 focus:ring-emerald-500/20"
                 />
               </div>
               
-              <div className="text-sm text-gray-600">
-                <p>Duration: {formatDuration(recordingDuration)}</p>
-                <p className="mt-1">
+              <div className="text-sm text-muted-foreground bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/20 dark:to-teal-950/20 p-4 rounded-lg border border-emerald-200 dark:border-emerald-800">
+                <p className="flex items-center gap-2 font-medium text-emerald-700 dark:text-emerald-300">
+                  <Sparkles className="w-4 h-4" />
+                  Duration: {formatDuration(recordingDuration)}
+                </p>
+                <p className="mt-1 text-emerald-600 dark:text-emerald-400">
                   This recording will be automatically transcribed and summarized using AI.
                 </p>
               </div>
@@ -187,7 +198,7 @@ export default function RecordingPage() {
               <Button
                 onClick={handleSaveRecording}
                 disabled={isProcessing}
-                className="w-full"
+                className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
                 size="lg"
               >
                 {isProcessing ? (
