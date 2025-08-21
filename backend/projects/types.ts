@@ -2,8 +2,6 @@ export interface Project {
   id: number;
   name: string;
   description?: string;
-  userId: string;
-  organizationId?: string;
   createdAt: Date;
   updatedAt: Date;
 }

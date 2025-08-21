@@ -1,6 +1,5 @@
 import { api } from "encore.dev/api";
 import { Query } from "encore.dev/api";
-import { getAuthData } from "~encore/auth";
 import { notesDB } from "./db";
 import type { Note } from "./types";
 
@@ -19,9 +18,8 @@ interface SearchNotesResponse {
 
 // Advanced search across notes with semantic search capabilities.
 export const searchNotes = api<SearchNotesParams, SearchNotesResponse>(
-  { expose: true, method: "GET", path: "/notes/search", auth: true },
+  { expose: true, method: "GET", path: "/notes/search" },
   async (params) => {
-    const auth = getAuthData()!;
     const limit = params.limit || 20;
     const offset = params.offset || 0;
     const query = params.query?.trim();
@@ -41,9 +39,9 @@ export const searchNotes = api<SearchNotesParams, SearchNotesResponse>(
         }
       }
 
-      let whereConditions = ["(user_id = $3 OR is_public = true)"];
-      let queryParams: any[] = [limit, offset, auth.userID];
-      let paramIndex = 4;
+      let whereConditions = ["1=1"];
+      let queryParams: any[] = [limit, offset];
+      let paramIndex = 3;
 
       // Add date range filter
       if (filters.dateFrom) {
@@ -105,7 +103,7 @@ export const searchNotes = api<SearchNotesParams, SearchNotesResponse>(
       const searchQuery = `
         SELECT 
           id, title, transcript, summary, duration, original_language, translated,
-          user_id, organization_id, is_public, tags, project_id, created_at, updated_at,
+          is_public, tags, project_id, created_at, updated_at,
           ts_rank(to_tsvector('english', title || ' ' || transcript || ' ' || summary), plainto_tsquery('english', $${queryParams.indexOf(query) + 1})) as rank
         FROM notes ${whereClause}
         ORDER BY rank DESC, created_at DESC
@@ -124,8 +122,6 @@ export const searchNotes = api<SearchNotesParams, SearchNotesResponse>(
           duration: number;
           original_language: string | null;
           translated: boolean | null;
-          user_id: string;
-          organization_id: string | null;
           is_public: boolean;
           tags: string[];
           project_id: number | null;
@@ -144,8 +140,6 @@ export const searchNotes = api<SearchNotesParams, SearchNotesResponse>(
         duration: row.duration,
         originalLanguage: row.original_language || undefined,
         translated: row.translated || undefined,
-        userId: row.user_id,
-        organizationId: row.organization_id || undefined,
         isPublic: row.is_public,
         tags: row.tags,
         projectId: row.project_id || undefined,
@@ -157,14 +151,12 @@ export const searchNotes = api<SearchNotesParams, SearchNotesResponse>(
       const suggestionsQuery = `
         SELECT DISTINCT unnest(tags) as suggestion
         FROM notes
-        WHERE (user_id = $1 OR is_public = true)
-        AND unnest(tags) ILIKE $2
+        WHERE unnest(tags) ILIKE $1
         LIMIT 5
       `;
 
       const suggestionsResult = await notesDB.rawQueryAll<{ suggestion: string }>(
         suggestionsQuery,
-        auth.userID,
         `%${query}%`
       );
 

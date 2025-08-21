@@ -11,7 +11,7 @@ export const get = api<GetProjectParams, Project>(
   { expose: true, method: "GET", path: "/projects/:id" },
   async (params) => {
     const row = await projectsDB.queryRow<Project>`
-      SELECT id, name, description, user_id, organization_id, created_at, updated_at
+      SELECT id, name, description, created_at, updated_at
       FROM projects
       WHERE id = ${params.id}
     `;
@@ -24,8 +24,6 @@ export const get = api<GetProjectParams, Project>(
       id: row.id,
       name: row.name,
       description: row.description,
-      userId: row.user_id,
-      organizationId: row.organization_id,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };

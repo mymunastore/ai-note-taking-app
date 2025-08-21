@@ -8,7 +8,6 @@ interface ListNotesParams {
   limit?: Query<number>;
   offset?: Query<number>;
   tags?: Query<string>;
-  organizationOnly?: Query<boolean>;
   projectId?: Query<number>;
 }
 
@@ -20,7 +19,6 @@ export const list = api<ListNotesParams, ListNotesResponse>(
     const offset = params.offset || 0;
     const search = params.search?.trim();
     const tags = params.tags?.split(",").filter(Boolean) || [];
-    const organizationOnly = params.organizationOnly || false;
     const projectId = params.projectId;
 
     let whereConditions = ["1=1"];
@@ -53,7 +51,7 @@ export const list = api<ListNotesParams, ListNotesResponse>(
     const countQuery = `SELECT COUNT(*) as total FROM notes ${whereClause}`;
     const notesQuery = `
       SELECT id, title, transcript, summary, duration, original_language, translated, 
-             user_id, organization_id, is_public, tags, project_id, created_at, updated_at 
+             is_public, tags, project_id, created_at, updated_at 
       FROM notes ${whereClause}
       ORDER BY created_at DESC 
       LIMIT $1 OFFSET $2
@@ -69,8 +67,6 @@ export const list = api<ListNotesParams, ListNotesResponse>(
         duration: number;
         original_language: string | null;
         translated: boolean | null;
-        user_id: string;
-        organization_id: string | null;
         is_public: boolean;
         tags: string[];
         project_id: number | null;
@@ -88,8 +84,6 @@ export const list = api<ListNotesParams, ListNotesResponse>(
       duration: row.duration,
       originalLanguage: row.original_language || undefined,
       translated: row.translated || undefined,
-      userId: row.user_id,
-      organizationId: row.organization_id || undefined,
       isPublic: row.is_public,
       tags: row.tags,
       projectId: row.project_id || undefined,

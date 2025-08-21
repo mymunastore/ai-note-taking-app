@@ -15,7 +15,7 @@ import AdvancedSearch from "../components/AdvancedSearch";
 import AnalyticsDashboard from "../components/AnalyticsDashboard";
 
 export default function NotesListPage() {
-  const { notes, isLoading, searchQuery, setSearchQuery, selectedTags, setSelectedTags, organizationOnly, setOrganizationOnly, deleteNote } = useNotes();
+  const { notes, isLoading, searchQuery, setSearchQuery, deleteNote } = useNotes();
   const { organization } = useAuth();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = React.useState("notes");

@@ -7,9 +7,9 @@ export const create = api<CreateProjectRequest, Project>(
   { expose: true, method: "POST", path: "/projects" },
   async (req) => {
     const row = await projectsDB.queryRow<Project>`
-      INSERT INTO projects (name, description, user_id, organization_id)
-      VALUES (${req.name}, ${req.description || null}, ${'anonymous'}, ${null})
-      RETURNING id, name, description, user_id, organization_id, created_at, updated_at
+      INSERT INTO projects (name, description)
+      VALUES (${req.name}, ${req.description || null})
+      RETURNING id, name, description, created_at, updated_at
     `;
 
     if (!row) {
@@ -20,8 +20,6 @@ export const create = api<CreateProjectRequest, Project>(
       id: row.id,
       name: row.name,
       description: row.description,
-      userId: row.user_id,
-      organizationId: row.organization_id,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };

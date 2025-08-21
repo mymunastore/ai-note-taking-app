@@ -18,8 +18,6 @@ export const get = api<GetNoteParams, Note>(
       duration: number;
       original_language: string | null;
       translated: boolean | null;
-      user_id: string;
-      organization_id: string | null;
       is_public: boolean;
       tags: string[];
       project_id: number | null;
@@ -27,7 +25,7 @@ export const get = api<GetNoteParams, Note>(
       updated_at: Date;
     }>`
       SELECT id, title, transcript, summary, duration, original_language, translated, 
-             user_id, organization_id, is_public, tags, project_id, created_at, updated_at
+             is_public, tags, project_id, created_at, updated_at
       FROM notes
       WHERE id = ${params.id}
     `;
@@ -44,8 +42,6 @@ export const get = api<GetNoteParams, Note>(
       duration: row.duration,
       originalLanguage: row.original_language || undefined,
       translated: row.translated || undefined,
-      userId: row.user_id,
-      organizationId: row.organization_id || undefined,
       isPublic: row.is_public,
       tags: row.tags,
       projectId: row.project_id || undefined,

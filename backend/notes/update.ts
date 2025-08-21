@@ -52,7 +52,7 @@ export const update = api<UpdateNoteRequest, Note>(
       SET ${updates.join(", ")}
       WHERE id = $${paramIndex}
       RETURNING id, title, transcript, summary, duration, original_language, translated,
-                user_id, organization_id, is_public, tags, project_id, created_at, updated_at
+                is_public, tags, project_id, created_at, updated_at
     `;
 
     const row = await notesDB.rawQueryRow<{
@@ -63,8 +63,6 @@ export const update = api<UpdateNoteRequest, Note>(
       duration: number;
       original_language: string | null;
       translated: boolean | null;
-      user_id: string;
-      organization_id: string | null;
       is_public: boolean;
       tags: string[];
       project_id: number | null;
@@ -84,8 +82,6 @@ export const update = api<UpdateNoteRequest, Note>(
       duration: row.duration,
       originalLanguage: row.original_language || undefined,
       translated: row.translated || undefined,
-      userId: row.user_id,
-      organizationId: row.organization_id || undefined,
       isPublic: row.is_public,
       tags: row.tags,
       projectId: row.project_id || undefined,

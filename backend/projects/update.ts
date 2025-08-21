@@ -10,7 +10,7 @@ export const update = api<UpdateProjectRequest, Project>(
       UPDATE projects
       SET name = ${req.name}, description = ${req.description}, updated_at = NOW()
       WHERE id = ${req.id}
-      RETURNING id, name, description, user_id, organization_id, created_at, updated_at
+      RETURNING id, name, description, created_at, updated_at
     `;
 
     if (!row) {
@@ -21,8 +21,6 @@ export const update = api<UpdateProjectRequest, Project>(
       id: row.id,
       name: row.name,
       description: row.description,
-      userId: row.user_id,
-      organizationId: row.organization_id,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };

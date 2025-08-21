@@ -7,7 +7,7 @@ export const list = api<void, ListProjectsResponse>(
   { expose: true, method: "GET", path: "/projects" },
   async () => {
     const projects = await projectsDB.queryAll<Project>`
-      SELECT id, name, description, user_id, organization_id, created_at, updated_at
+      SELECT id, name, description, created_at, updated_at
       FROM projects
       ORDER BY created_at DESC
     `;
@@ -17,8 +17,6 @@ export const list = api<void, ListProjectsResponse>(
         id: p.id,
         name: p.name,
         description: p.description,
-        userId: p.user_id,
-        organizationId: p.organization_id,
         createdAt: p.created_at,
         updatedAt: p.updated_at,
       })),

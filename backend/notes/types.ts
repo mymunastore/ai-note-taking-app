@@ -6,8 +6,6 @@ export interface Note {
   duration: number;
   originalLanguage?: string;
   translated?: boolean;
-  userId: string;
-  organizationId?: string;
   isPublic: boolean;
   tags: string[];
   projectId?: number;
@@ -42,7 +40,6 @@ export interface ListNotesRequest {
   limit?: number;
   offset?: number;
   tags?: string;
-  organizationOnly?: boolean;
   projectId?: number;
 }
 

@@ -11,8 +11,6 @@ interface NotesContextType {
   setSearchQuery: (query: string) => void;
   selectedTags: string[];
   setSelectedTags: (tags: string[]) => void;
-  organizationOnly: boolean;
-  setOrganizationOnly: (value: boolean) => void;
   createNote: (note: CreateNoteRequest) => Promise<Note>;
   updateNote: (note: UpdateNoteRequest) => Promise<Note>;
   deleteNote: (id: number) => Promise<void>;
@@ -29,7 +27,6 @@ export function NotesProvider({ children }: NotesProviderProps) {
   const backend = useBackend();
   const [searchQuery, setSearchQuery] = React.useState("");
   const [selectedTags, setSelectedTags] = React.useState<string[]>([]);
-  const [organizationOnly, setOrganizationOnly] = React.useState(false);
   const queryClient = useQueryClient();
 
   const {
@@ -38,12 +35,11 @@ export function NotesProvider({ children }: NotesProviderProps) {
     error,
     refetch,
   } = useQuery({
-    queryKey: ["notes", searchQuery, selectedTags, organizationOnly],
+    queryKey: ["notes", searchQuery, selectedTags],
     queryFn: async () => {
       const params: any = {};
       if (searchQuery) params.search = searchQuery;
       if (selectedTags.length > 0) params.tags = selectedTags.join(",");
-      if (organizationOnly) params.organizationOnly = true;
       return backend.notes.list(params);
     },
   });
@@ -77,8 +73,6 @@ export function NotesProvider({ children }: NotesProviderProps) {
     setSearchQuery,
     selectedTags,
     setSelectedTags,
-    organizationOnly,
-    setOrganizationOnly,
     createNote: createNoteMutation.mutateAsync,
     updateNote: updateNoteMutation.mutateAsync,
     deleteNote: deleteNoteMutation.mutateAsync,

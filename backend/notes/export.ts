@@ -1,5 +1,4 @@
 import { api, APIError } from "encore.dev/api";
-import { getAuthData } from "~encore/auth";
 import { notesDB } from "./db";
 
 interface ExportNotesRequest {
@@ -17,16 +16,14 @@ interface ExportNotesResponse {
 
 // Exports notes in various formats.
 export const exportNotes = api<ExportNotesRequest, ExportNotesResponse>(
-  { expose: true, method: "POST", path: "/notes/export", auth: true },
+  { expose: true, method: "POST", path: "/notes/export" },
   async (req) => {
-    const auth = getAuthData()!;
-
     try {
-      let whereClause = "WHERE user_id = $1";
-      let queryParams: any[] = [auth.userID];
+      let whereClause = "WHERE 1=1";
+      let queryParams: any[] = [];
 
       if (req.noteIds && req.noteIds.length > 0) {
-        whereClause += " AND id = ANY($2)";
+        whereClause += " AND id = ANY($1)";
         queryParams.push(req.noteIds);
       }
 
