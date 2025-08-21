@@ -9,16 +9,10 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import Layout from "./components/Layout";
 import ChatBot from "./components/ChatBot";
 
-const HomePage = React.lazy(() => import("./pages/HomePage"));
 const NotesListPage = React.lazy(() => import("./pages/NotesListPage"));
 const NoteDetailPage = React.lazy(() => import("./pages/NoteDetailPage"));
 const RecordingPage = React.lazy(() => import("./pages/RecordingPage"));
 const LiveTranscriptionPage = React.lazy(() => import("./pages/LiveTranscriptionPage"));
-const ProjectsPage = React.lazy(() => import("./pages/ProjectsPage"));
-const AdvancedAnalyticsPage = React.lazy(() => import("./pages/AdvancedAnalyticsPage"));
-const WorkflowsPage = React.lazy(() => import("./pages/WorkflowsPage"));
-const TemplatesPage = React.lazy(() => import("./pages/TemplatesPage"));
-const MeetingPreparationPage = React.lazy(() => import("./pages/MeetingPreparationPage"));
 const SettingsPage = React.lazy(() => import("./pages/SettingsPage"));
 
 const queryClient = new QueryClient({
@@ -51,15 +45,9 @@ function AppContent() {
       >
         <Routes>
           <Route path="/" element={<NotesListPage />} />
-          <Route path="/home" element={<HomePage />} />
           <Route path="/note/:id" element={<NoteDetailPage />} />
           <Route path="/record" element={<RecordingPage />} />
           <Route path="/live" element={<LiveTranscriptionPage />} />
-          <Route path="/projects" element={<ProjectsPage />} />
-          <Route path="/analytics" element={<AdvancedAnalyticsPage />} />
-          <Route path="/workflows" element={<WorkflowsPage />} />
-          <Route path="/templates" element={<TemplatesPage />} />
-          <Route path="/meeting-prep" element={<MeetingPreparationPage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Routes>
       </Suspense>

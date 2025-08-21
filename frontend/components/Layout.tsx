@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Mic, Settings, Moon, Sun, Home, FileText, Brain, Zap, Activity, BarChart3, FolderOpen, Calendar } from "lucide-react";
+import { Mic, Settings, Moon, Sun, Home, Activity, Brain } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useTheme } from "../contexts/ThemeContext";
@@ -17,11 +17,6 @@ export default function Layout({ children }: LayoutProps) {
     { path: "/", icon: Home, label: "Dashboard" },
     { path: "/record", icon: Mic, label: "Record" },
     { path: "/live", icon: Activity, label: "Live Transcription" },
-    { path: "/meeting-prep", icon: Calendar, label: "Meeting Prep" },
-    { path: "/projects", icon: FolderOpen, label: "Projects" },
-    { path: "/analytics", icon: BarChart3, label: "Analytics" },
-    { path: "/workflows", icon: Zap, label: "Workflows" },
-    { path: "/templates", icon: FileText, label: "Templates" },
     { path: "/settings", icon: Settings, label: "Settings" },
   ];
 
