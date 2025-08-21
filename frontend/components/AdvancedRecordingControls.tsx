@@ -115,10 +115,12 @@ export default function AdvancedRecordingControls({
   const enumerateMics = useCallback(async () => {
     try {
       const list = await navigator.mediaDevices.enumerateDevices();
-      const mics = list.filter((d) => d.kind === "audioinput");
+      const mics = list.filter((d) => d.kind === "audioinput" && d.deviceId); // Filter for devices with an ID
       setDevices(mics);
       if (!selectedDeviceId && mics.length > 0) {
         setSelectedDeviceId(mics[0].deviceId);
+      } else if (mics.length === 0) {
+        setSelectedDeviceId(undefined);
       }
     } catch {
       // ignore
@@ -193,6 +195,7 @@ export default function AdvancedRecordingControls({
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       streamRef.current = stream;
       setPermission("granted");
+      await enumerateMics(); // Re-enumerate devices now that we have permission
       startLevelMeter(stream);
     } catch (err: any) {
       // Common: NotAllowedError when user denies
@@ -264,7 +267,7 @@ export default function AdvancedRecordingControls({
             <div className="space-y-2 md:col-span-2">
               <Label className="text-sm font-medium">Input Device</Label>
               <Select
-                value={selectedDeviceId || (devices[0]?.deviceId ?? "")}
+                value={selectedDeviceId || ""}
                 onValueChange={(value) => setSelectedDeviceId(value)}
               >
                 <SelectTrigger>

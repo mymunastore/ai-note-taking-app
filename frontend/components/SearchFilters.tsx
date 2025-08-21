@@ -169,12 +169,12 @@ export default function SearchFilters({
                 {/* Language Filter */}
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">Language</Label>
-                  <Select value={filters.language || ""} onValueChange={(value) => updateFilter('language', value || undefined)}>
+                  <Select value={filters.language || "all"} onValueChange={(value) => updateFilter('language', value === 'all' ? undefined : value)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Any language" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Any language</SelectItem>
+                      <SelectItem value="all">Any language</SelectItem>
                       {availableLanguages.map((lang) => (
                         <SelectItem key={lang} value={lang}>
                           <div className="flex items-center gap-2">
