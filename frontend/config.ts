@@ -1,5 +1,5 @@
 // Clerk configuration
-export const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || "";
+export const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || "pk_test_Y2xhc3NpYy1pYmV4LTYuY2xlcmsuYWNjb3VudHMuZGV2JA";
 
 // Auth0 configuration (for additional SSO options)
 export const auth0Domain = import.meta.env.VITE_AUTH0_DOMAIN || "";
