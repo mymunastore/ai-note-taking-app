@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Mic, Settings, Moon, Sun, Home, FileText } from "lucide-react";
+import { Mic, Settings, Moon, Sun, Home, FileText, Brain, Zap, Activity, BarChart3, FolderOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useTheme } from "../contexts/ThemeContext";
@@ -16,6 +16,11 @@ export default function Layout({ children }: LayoutProps) {
   const navItems = [
     { path: "/", icon: Home, label: "Dashboard" },
     { path: "/record", icon: Mic, label: "Record" },
+    { path: "/live", icon: Activity, label: "Live Transcription" },
+    { path: "/projects", icon: FolderOpen, label: "Projects" },
+    { path: "/analytics", icon: BarChart3, label: "Analytics" },
+    { path: "/workflows", icon: Zap, label: "Workflows" },
+    { path: "/templates", icon: FileText, label: "Templates" },
     { path: "/settings", icon: Settings, label: "Settings" },
   ];
 
@@ -25,7 +30,7 @@ export default function Layout({ children }: LayoutProps) {
         <div className="p-6 border-b border-border">
           <Link to="/" className="flex items-center gap-3">
             <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center">
-              <FileText className="w-5 h-5 text-white" />
+              <Brain className="w-5 h-5 text-white" />
             </div>
             <div>
               <h1 className="text-xl font-bold bg-gradient-to-r from-emerald-600 via-teal-600 to-blue-600 bg-clip-text text-transparent">
