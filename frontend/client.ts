@@ -88,6 +88,7 @@ export interface ClientOptions {
 /**
  * Import the endpoint handlers to derive the types for the client.
  */
+import { advancedAnalysis as api_ai_advanced_analysis_advancedAnalysis } from "~backend/ai/advanced_analysis";
 import { analyzeTranscript as api_ai_analyze_analyzeTranscript } from "~backend/ai/analyze";
 import { chat as api_ai_chat_chat } from "~backend/ai/chat";
 import {
@@ -96,8 +97,15 @@ import {
     semanticSearch as api_ai_cohere_semanticSearch
 } from "~backend/ai/cohere";
 import { detectLanguage as api_ai_detect_language_detectLanguage } from "~backend/ai/detect_language";
+import { generateSmartInsights as api_ai_smart_insights_generateSmartInsights } from "~backend/ai/smart_insights";
 import { summarize as api_ai_summarize_summarize } from "~backend/ai/summarize";
 import { transcribe as api_ai_transcribe_transcribe } from "~backend/ai/transcribe";
+import {
+    createWorkflow as api_ai_workflow_automation_createWorkflow,
+    executeWorkflows as api_ai_workflow_automation_executeWorkflows,
+    generateSmartTemplate as api_ai_workflow_automation_generateSmartTemplate,
+    listWorkflows as api_ai_workflow_automation_listWorkflows
+} from "~backend/ai/workflow_automation";
 
 export namespace ai {
 
@@ -106,14 +114,29 @@ export namespace ai {
 
         constructor(baseClient: BaseClient) {
             this.baseClient = baseClient
+            this.advancedAnalysis = this.advancedAnalysis.bind(this)
             this.analyzeTranscript = this.analyzeTranscript.bind(this)
             this.chat = this.chat.bind(this)
             this.classify = this.classify.bind(this)
+            this.createWorkflow = this.createWorkflow.bind(this)
             this.detectLanguage = this.detectLanguage.bind(this)
+            this.executeWorkflows = this.executeWorkflows.bind(this)
             this.generate = this.generate.bind(this)
+            this.generateSmartInsights = this.generateSmartInsights.bind(this)
+            this.generateSmartTemplate = this.generateSmartTemplate.bind(this)
+            this.listWorkflows = this.listWorkflows.bind(this)
             this.semanticSearch = this.semanticSearch.bind(this)
             this.summarize = this.summarize.bind(this)
             this.transcribe = this.transcribe.bind(this)
+        }
+
+        /**
+         * Performs advanced AI analysis with multiple sophisticated insights.
+         */
+        public async advancedAnalysis(params: RequestType<typeof api_ai_advanced_analysis_advancedAnalysis>): Promise<ResponseType<typeof api_ai_advanced_analysis_advancedAnalysis>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/ai/advanced-analysis`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_ai_advanced_analysis_advancedAnalysis>
         }
 
         /**
@@ -144,6 +167,15 @@ export namespace ai {
         }
 
         /**
+         * Creates a new automated workflow with triggers and actions.
+         */
+        public async createWorkflow(params: RequestType<typeof api_ai_workflow_automation_createWorkflow>): Promise<ResponseType<typeof api_ai_workflow_automation_createWorkflow>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/ai/workflows`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_ai_workflow_automation_createWorkflow>
+        }
+
+        /**
          * Detects the language of audio using OpenAI Whisper API.
          */
         public async detectLanguage(params: RequestType<typeof api_ai_detect_language_detectLanguage>): Promise<ResponseType<typeof api_ai_detect_language_detectLanguage>> {
@@ -153,12 +185,48 @@ export namespace ai {
         }
 
         /**
+         * Executes workflows based on meeting content and triggers.
+         */
+        public async executeWorkflows(params: RequestType<typeof api_ai_workflow_automation_executeWorkflows>): Promise<ResponseType<typeof api_ai_workflow_automation_executeWorkflows>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/ai/workflows/execute`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_ai_workflow_automation_executeWorkflows>
+        }
+
+        /**
          * Generates text using Cohere's language models.
          */
         public async generate(params: RequestType<typeof api_ai_cohere_generate>): Promise<ResponseType<typeof api_ai_cohere_generate>> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/ai/cohere/generate`, {method: "POST", body: JSON.stringify(params)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_ai_cohere_generate>
+        }
+
+        /**
+         * Generates smart insights and predictions based on user's meeting patterns and content.
+         */
+        public async generateSmartInsights(params: RequestType<typeof api_ai_smart_insights_generateSmartInsights>): Promise<ResponseType<typeof api_ai_smart_insights_generateSmartInsights>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/ai/smart-insights`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_ai_smart_insights_generateSmartInsights>
+        }
+
+        /**
+         * Generates smart templates for various communication needs.
+         */
+        public async generateSmartTemplate(params: RequestType<typeof api_ai_workflow_automation_generateSmartTemplate>): Promise<ResponseType<typeof api_ai_workflow_automation_generateSmartTemplate>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/ai/smart-template`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_ai_workflow_automation_generateSmartTemplate>
+        }
+
+        /**
+         * Lists all workflows.
+         */
+        public async listWorkflows(): Promise<ResponseType<typeof api_ai_workflow_automation_listWorkflows>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/ai/workflows`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_ai_workflow_automation_listWorkflows>
         }
 
         /**
