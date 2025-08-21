@@ -10,6 +10,7 @@ export interface Note {
   organizationId?: string;
   isPublic: boolean;
   tags: string[];
+  projectId?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -23,6 +24,7 @@ export interface CreateNoteRequest {
   translated?: boolean;
   isPublic?: boolean;
   tags?: string[];
+  projectId?: number;
 }
 
 export interface UpdateNoteRequest {
@@ -32,6 +34,7 @@ export interface UpdateNoteRequest {
   summary?: string;
   tags?: string[];
   isPublic?: boolean;
+  projectId?: number;
 }
 
 export interface ListNotesRequest {
@@ -40,6 +43,7 @@ export interface ListNotesRequest {
   offset?: number;
   tags?: string;
   organizationOnly?: boolean;
+  projectId?: number;
 }
 
 export interface ListNotesResponse {
@@ -59,6 +63,8 @@ export interface TranscribeResponse {
 
 export interface SummarizeRequest {
   transcript: string;
+  length?: "short" | "medium" | "long";
+  format?: "paragraph" | "bullets";
 }
 
 export interface SummarizeResponse {
@@ -68,6 +74,7 @@ export interface SummarizeResponse {
 export interface ChatRequest {
   message: string;
   context?: string;
+  chatHistory?: Array<{ role: "USER" | "CHATBOT"; message: string }>;
 }
 
 export interface ChatResponse {

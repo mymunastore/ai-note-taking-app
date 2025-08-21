@@ -10,6 +10,7 @@ interface ListNotesParams {
   offset?: Query<number>;
   tags?: Query<string>;
   organizationOnly?: Query<boolean>;
+  projectId?: Query<number>;
 }
 
 // Retrieves all notes with optional search and pagination.
@@ -22,6 +23,7 @@ export const list = api<ListNotesParams, ListNotesResponse>(
     const search = params.search?.trim();
     const tags = params.tags?.split(",").filter(Boolean) || [];
     const organizationOnly = params.organizationOnly || false;
+    const projectId = params.projectId;
 
     let whereConditions = ["(user_id = $3 OR is_public = true)"];
     let queryParams: any[] = [limit, offset, auth.userID];
@@ -48,12 +50,19 @@ export const list = api<ListNotesParams, ListNotesResponse>(
       paramIndex++;
     }
 
+    // Add project filter
+    if (projectId) {
+      whereConditions.push(`project_id = $${paramIndex}`);
+      queryParams.push(projectId);
+      paramIndex++;
+    }
+
     const whereClause = `WHERE ${whereConditions.join(" AND ")}`;
 
     const countQuery = `SELECT COUNT(*) as total FROM notes ${whereClause}`;
     const notesQuery = `
       SELECT id, title, transcript, summary, duration, original_language, translated, 
-             user_id, organization_id, is_public, tags, created_at, updated_at 
+             user_id, organization_id, is_public, tags, project_id, created_at, updated_at 
       FROM notes ${whereClause}
       ORDER BY created_at DESC 
       LIMIT $1 OFFSET $2
@@ -73,6 +82,7 @@ export const list = api<ListNotesParams, ListNotesResponse>(
         organization_id: string | null;
         is_public: boolean;
         tags: string[];
+        project_id: number | null;
         created_at: Date;
         updated_at: Date;
       }>(notesQuery, ...queryParams),
@@ -91,6 +101,7 @@ export const list = api<ListNotesParams, ListNotesResponse>(
       organizationId: row.organization_id || undefined,
       isPublic: row.is_public,
       tags: row.tags,
+      projectId: row.project_id || undefined,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     }));

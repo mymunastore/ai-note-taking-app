@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { Plus, FolderOpen, Search, MoreVertical, Users, Lock, Globe, Calendar, FileText, Mic } from "lucide-react";
+import { Plus, FolderOpen, Search, MoreVertical, Users, Lock, Globe, Calendar, Mic } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,73 +9,51 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/components/ui/use-toast";
-
-interface Project {
-  id: string;
-  name: string;
-  description: string;
-  privacy: "private" | "team" | "public";
-  recordingsCount: number;
-  totalDuration: number;
-  createdAt: Date;
-  updatedAt: Date;
-  color: string;
-}
+import { useBackend } from "../contexts/AuthContext";
+import type { Project } from "~backend/projects/types";
 
 export default function ProjectsPage() {
+  const backend = useBackend();
+  const queryClient = useQueryClient();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [newProject, setNewProject] = useState({
     name: "",
     description: "",
-    privacy: "private" as const,
-    color: "#10b981"
   });
 
-  const [projects] = useState<Project[]>([
-    {
-      id: "1",
-      name: "Team Meetings",
-      description: "Weekly team standup meetings and project discussions",
-      privacy: "team",
-      recordingsCount: 12,
-      totalDuration: 480,
-      createdAt: new Date("2024-01-15"),
-      updatedAt: new Date("2024-01-20"),
-      color: "#10b981"
-    },
-    {
-      id: "2", 
-      name: "Client Calls",
-      description: "Important client meetings and sales calls",
-      privacy: "private",
-      recordingsCount: 8,
-      totalDuration: 320,
-      createdAt: new Date("2024-01-10"),
-      updatedAt: new Date("2024-01-18"),
-      color: "#3b82f6"
-    },
-    {
-      id: "3",
-      name: "Product Research",
-      description: "User interviews and market research sessions",
-      privacy: "team",
-      recordingsCount: 15,
-      totalDuration: 600,
-      createdAt: new Date("2024-01-05"),
-      updatedAt: new Date("2024-01-19"),
-      color: "#8b5cf6"
-    }
-  ]);
+  const { data: projects, isLoading } = useQuery({
+    queryKey: ["projects"],
+    queryFn: () => backend.projects.list().then(res => res.projects),
+  });
 
-  const filteredProjects = projects.filter(project =>
+  const createProjectMutation = useMutation({
+    mutationFn: (project: { name: string; description?: string }) => backend.projects.create(project),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
+      setIsCreateDialogOpen(false);
+      setNewProject({ name: "", description: "" });
+      toast({
+        title: "Project Created",
+        description: `"${newProject.name}" has been created successfully.`
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to create project. Please try again.",
+        variant: "destructive"
+      });
+    }
+  });
+
+  const filteredProjects = projects?.filter(project =>
     project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    project.description.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+    project.description?.toLowerCase().includes(searchQuery.toLowerCase())
+  ) || [];
 
   const handleCreateProject = () => {
     if (!newProject.name.trim()) {
@@ -85,52 +64,13 @@ export default function ProjectsPage() {
       });
       return;
     }
-
-    // In a real app, this would make an API call
-    toast({
-      title: "Project Created",
-      description: `"${newProject.name}" has been created successfully.`
-    });
-
-    setNewProject({
-      name: "",
-      description: "",
-      privacy: "private",
-      color: "#10b981"
-    });
-    setIsCreateDialogOpen(false);
+    createProjectMutation.mutate(newProject);
   };
 
   const formatDuration = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
     return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
-  };
-
-  const getPrivacyIcon = (privacy: string) => {
-    switch (privacy) {
-      case "private":
-        return <Lock className="w-4 h-4" />;
-      case "team":
-        return <Users className="w-4 h-4" />;
-      case "public":
-        return <Globe className="w-4 h-4" />;
-      default:
-        return <Lock className="w-4 h-4" />;
-    }
-  };
-
-  const getPrivacyColor = (privacy: string) => {
-    switch (privacy) {
-      case "private":
-        return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300";
-      case "team":
-        return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300";
-      case "public":
-        return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300";
-      default:
-        return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300";
-    }
   };
 
   return (
@@ -181,25 +121,12 @@ export default function ProjectsPage() {
                     className="bg-background border-border resize-none"
                   />
                 </div>
-                <div>
-                  <Label>Privacy</Label>
-                  <Select value={newProject.privacy} onValueChange={(value: any) => setNewProject(prev => ({ ...prev, privacy: value }))}>
-                    <SelectTrigger className="bg-background border-border">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="private">Private - Only you can access</SelectItem>
-                      <SelectItem value="team">Team - Team members can access</SelectItem>
-                      <SelectItem value="public">Public - Anyone can view</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
                 <div className="flex gap-2 pt-4">
                   <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)} className="flex-1">
                     Cancel
                   </Button>
-                  <Button onClick={handleCreateProject} className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white">
-                    Create Project
+                  <Button onClick={handleCreateProject} disabled={createProjectMutation.isPending} className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white">
+                    {createProjectMutation.isPending ? "Creating..." : "Create Project"}
                   </Button>
                 </div>
               </div>
@@ -219,7 +146,9 @@ export default function ProjectsPage() {
         </div>
 
         {/* Projects Grid */}
-        {filteredProjects.length === 0 ? (
+        {isLoading ? (
+          <div className="text-center py-12">Loading projects...</div>
+        ) : filteredProjects.length === 0 ? (
           <div className="text-center py-12">
             <div className="w-20 h-20 bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-950/50 dark:to-teal-950/50 rounded-full flex items-center justify-center mx-auto mb-4">
               <FolderOpen className="w-10 h-10 text-emerald-600" />
@@ -250,8 +179,7 @@ export default function ProjectsPage() {
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
                       <div 
-                        className="w-10 h-10 rounded-lg flex items-center justify-center"
-                        style={{ backgroundColor: `${project.color}20`, color: project.color }}
+                        className="w-10 h-10 rounded-lg flex items-center justify-center bg-emerald-100 text-emerald-600 dark:bg-emerald-900 dark:text-emerald-300"
                       >
                         <FolderOpen className="w-5 h-5" />
                       </div>
@@ -261,14 +189,6 @@ export default function ProjectsPage() {
                             {project.name}
                           </Link>
                         </CardTitle>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Badge className={`text-xs ${getPrivacyColor(project.privacy)}`}>
-                            <span className="flex items-center gap-1">
-                              {getPrivacyIcon(project.privacy)}
-                              {project.privacy}
-                            </span>
-                          </Badge>
-                        </div>
                       </div>
                     </div>
                     
@@ -297,16 +217,16 @@ export default function ProjectsPage() {
                     <div className="flex items-center justify-between text-sm">
                       <div className="flex items-center gap-1 text-muted-foreground">
                         <Mic className="w-4 h-4" />
-                        <span>{project.recordingsCount} recordings</span>
+                        <span>0 recordings</span>
                       </div>
                       <div className="flex items-center gap-1 text-muted-foreground">
                         <Calendar className="w-4 h-4" />
-                        <span>{formatDuration(project.totalDuration)}</span>
+                        <span>0m</span>
                       </div>
                     </div>
                     
                     <div className="text-xs text-muted-foreground">
-                      Updated {project.updatedAt.toLocaleDateString()}
+                      Updated {new Date(project.updatedAt).toLocaleDateString()}
                     </div>
                   </div>
                 </CardContent>

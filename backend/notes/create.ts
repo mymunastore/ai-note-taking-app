@@ -21,12 +21,13 @@ export const create = api<CreateNoteRequest, Note>(
       organization_id: string | null;
       is_public: boolean;
       tags: string[];
+      project_id: number | null;
       created_at: Date;
       updated_at: Date;
     }>`
-      INSERT INTO notes (title, transcript, summary, duration, original_language, translated, user_id, organization_id, is_public, tags)
-      VALUES (${req.title}, ${req.transcript}, ${req.summary}, ${req.duration}, ${req.originalLanguage || null}, ${req.translated || false}, ${auth.userID}, ${auth.organizationId || null}, ${req.isPublic || false}, ${req.tags || []})
-      RETURNING id, title, transcript, summary, duration, original_language, translated, user_id, organization_id, is_public, tags, created_at, updated_at
+      INSERT INTO notes (title, transcript, summary, duration, original_language, translated, user_id, organization_id, is_public, tags, project_id)
+      VALUES (${req.title}, ${req.transcript}, ${req.summary}, ${req.duration}, ${req.originalLanguage || null}, ${req.translated || false}, ${auth.userID}, ${auth.organizationId || null}, ${req.isPublic || false}, ${req.tags || []}, ${req.projectId || null})
+      RETURNING id, title, transcript, summary, duration, original_language, translated, user_id, organization_id, is_public, tags, project_id, created_at, updated_at
     `;
 
     if (!row) {
@@ -45,6 +46,7 @@ export const create = api<CreateNoteRequest, Note>(
       organizationId: row.organization_id || undefined,
       isPublic: row.is_public,
       tags: row.tags,
+      projectId: row.project_id || undefined,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };

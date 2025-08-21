@@ -5,9 +5,14 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/components/ui/use-toast";
-import backend from "~backend/client";
+import { useBackend } from "../contexts/AuthContext";
 
 interface Message {
+  role: "USER" | "CHATBOT";
+  message: string;
+}
+
+interface DisplayMessage {
   id: string;
   content: string;
   isUser: boolean;
@@ -19,8 +24,10 @@ interface ChatBotProps {
 }
 
 export default function ChatBot({ context }: ChatBotProps) {
+  const backend = useBackend();
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
+  const [chatHistory, setChatHistory] = useState<Message[]>([]);
+  const [displayMessages, setDisplayMessages] = useState<DisplayMessage[]>([
     {
       id: "welcome",
       content: "Hi! I'm SCRIBE AI, your intelligent assistant. I can help you analyze your recordings, answer questions about your notes, and provide insights from your transcripts. How can I help you today?",
@@ -39,36 +46,45 @@ export default function ChatBot({ context }: ChatBotProps) {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [displayMessages]);
 
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isLoading) return;
 
-    const userMessage: Message = {
+    const userMessageContent = inputValue;
+    const userDisplayMessage: DisplayMessage = {
       id: Date.now().toString(),
-      content: inputValue,
+      content: userMessageContent,
       isUser: true,
       timestamp: new Date(),
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    setDisplayMessages(prev => [...prev, userDisplayMessage]);
     setInputValue("");
     setIsLoading(true);
 
     try {
       const response = await backend.ai.chat({
-        message: inputValue,
+        message: userMessageContent,
         context: context,
+        chatHistory: chatHistory,
       });
 
-      const aiMessage: Message = {
+      const aiMessageContent = response.response;
+      const aiDisplayMessage: DisplayMessage = {
         id: (Date.now() + 1).toString(),
-        content: response.response,
+        content: aiMessageContent,
         isUser: false,
         timestamp: new Date(),
       };
 
-      setMessages(prev => [...prev, aiMessage]);
+      setDisplayMessages(prev => [...prev, aiDisplayMessage]);
+      setChatHistory(prev => [
+        ...prev,
+        { role: "USER", message: userMessageContent },
+        { role: "CHATBOT", message: aiMessageContent },
+      ]);
+
     } catch (error) {
       console.error("Chat error:", error);
       toast({
@@ -77,14 +93,14 @@ export default function ChatBot({ context }: ChatBotProps) {
         variant: "destructive",
       });
 
-      const errorMessage: Message = {
+      const errorMessage: DisplayMessage = {
         id: (Date.now() + 1).toString(),
         content: "I'm sorry, I'm having trouble responding right now. Please try again later.",
         isUser: false,
         timestamp: new Date(),
       };
 
-      setMessages(prev => [...prev, errorMessage]);
+      setDisplayMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }
@@ -133,7 +149,7 @@ export default function ChatBot({ context }: ChatBotProps) {
       <CardContent className="flex-1 p-0 flex flex-col">
         <ScrollArea className="flex-1 p-4">
           <div className="space-y-4">
-            {messages.map((message) => (
+            {displayMessages.map((message) => (
               <div
                 key={message.id}
                 className={`flex ${message.isUser ? "justify-end" : "justify-start"}`}

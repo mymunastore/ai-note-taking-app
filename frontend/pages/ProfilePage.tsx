@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Camera, Save, User, Mail, Phone, MapPin, Calendar, Bell, Palette, Shield, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,20 +11,31 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/components/ui/use-toast";
 import { useTheme } from "../contexts/ThemeContext";
+import { useAuth, useBackend } from "../contexts/AuthContext";
 
 export default function ProfilePage() {
   const { theme, toggleTheme } = useTheme();
+  const { user, isLoaded } = useAuth();
+  const backend = useBackend();
   const { toast } = useToast();
   
   const [profile, setProfile] = useState({
-    name: "John Doe",
-    email: "john.doe@example.com",
-    phone: "+1 (555) 123-4567",
-    location: "San Francisco, CA",
-    bio: "Product Manager passionate about AI and productivity tools. Love using SCRIBE AI for all my meeting notes!",
+    firstName: "",
+    lastName: "",
+    email: "",
     avatar: "",
-    joinDate: "2024-01-15"
   });
+
+  useEffect(() => {
+    if (isLoaded && user) {
+      setProfile({
+        firstName: user.firstName || "",
+        lastName: user.lastName || "",
+        email: user.emailAddresses[0]?.emailAddress || "",
+        avatar: user.imageUrl || "",
+      });
+    }
+  }, [isLoaded, user]);
 
   const [notifications, setNotifications] = useState({
     transcriptionComplete: true,
@@ -42,28 +53,50 @@ export default function ProfilePage() {
     defaultProjectPrivacy: "private"
   });
 
-  const handleProfileUpdate = () => {
-    // In a real app, this would make an API call
-    toast({
-      title: "Profile Updated",
-      description: "Your profile has been successfully updated.",
-    });
+  const handleProfileUpdate = async () => {
+    try {
+      await backend.auth.updateProfile({
+        firstName: profile.firstName,
+        lastName: profile.lastName,
+      });
+      toast({
+        title: "Profile Updated",
+        description: "Your profile has been successfully updated.",
+      });
+    } catch (error) {
+      console.error("Profile update error:", error);
+      toast({
+        title: "Update Error",
+        description: "Failed to update your profile. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleAvatarUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      // In a real app, you would upload this file to a service and then update the user's profile URL
+      // For this demo, we'll just show a preview
       const reader = new FileReader();
       reader.onload = (e) => {
         setProfile(prev => ({ ...prev, avatar: e.target?.result as string }));
       };
       reader.readAsDataURL(file);
+      toast({
+        title: "Avatar Updated",
+        description: "Your new avatar is ready. Click 'Save Changes' to apply.",
+      });
     }
   };
 
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
   };
+
+  if (!isLoaded) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <div className="p-6">
@@ -93,7 +126,7 @@ export default function ProfilePage() {
                     <Avatar className="w-24 h-24">
                       <AvatarImage src={profile.avatar} />
                       <AvatarFallback className="bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-950/50 dark:to-teal-950/50 text-emerald-700 dark:text-emerald-300 text-lg">
-                        {getInitials(profile.name)}
+                        {getInitials(`${profile.firstName} ${profile.lastName}`)}
                       </AvatarFallback>
                     </Avatar>
                     <label htmlFor="avatar-upload" className="absolute -bottom-2 -right-2 w-8 h-8 bg-emerald-600 hover:bg-emerald-700 rounded-full flex items-center justify-center cursor-pointer transition-colors">
@@ -108,61 +141,30 @@ export default function ProfilePage() {
                     />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-foreground">{profile.name}</h3>
-                    <p className="text-muted-foreground">Member since {new Date(profile.joinDate).toLocaleDateString()}</p>
+                    <h3 className="font-semibold text-foreground">{profile.firstName} {profile.lastName}</h3>
+                    <p className="text-muted-foreground">{profile.email}</p>
                   </div>
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="name" className="text-foreground">Full Name</Label>
+                    <Label htmlFor="firstName" className="text-foreground">First Name</Label>
                     <Input
-                      id="name"
-                      value={profile.name}
-                      onChange={(e) => setProfile(prev => ({ ...prev, name: e.target.value }))}
+                      id="firstName"
+                      value={profile.firstName}
+                      onChange={(e) => setProfile(prev => ({ ...prev, firstName: e.target.value }))}
                       className="bg-background border-border"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="email" className="text-foreground">Email Address</Label>
+                    <Label htmlFor="lastName" className="text-foreground">Last Name</Label>
                     <Input
-                      id="email"
-                      type="email"
-                      value={profile.email}
-                      onChange={(e) => setProfile(prev => ({ ...prev, email: e.target.value }))}
+                      id="lastName"
+                      value={profile.lastName}
+                      onChange={(e) => setProfile(prev => ({ ...prev, lastName: e.target.value }))}
                       className="bg-background border-border"
                     />
                   </div>
-                  <div>
-                    <Label htmlFor="phone" className="text-foreground">Phone Number</Label>
-                    <Input
-                      id="phone"
-                      value={profile.phone}
-                      onChange={(e) => setProfile(prev => ({ ...prev, phone: e.target.value }))}
-                      className="bg-background border-border"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="location" className="text-foreground">Location</Label>
-                    <Input
-                      id="location"
-                      value={profile.location}
-                      onChange={(e) => setProfile(prev => ({ ...prev, location: e.target.value }))}
-                      className="bg-background border-border"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <Label htmlFor="bio" className="text-foreground">Bio</Label>
-                  <Textarea
-                    id="bio"
-                    value={profile.bio}
-                    onChange={(e) => setProfile(prev => ({ ...prev, bio: e.target.value }))}
-                    rows={4}
-                    className="bg-background border-border resize-none"
-                    placeholder="Tell us about yourself..."
-                  />
                 </div>
 
                 <Button onClick={handleProfileUpdate} className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white">
@@ -230,7 +232,7 @@ export default function ProfilePage() {
 
                 <div>
                   <Label className="text-foreground">Default Project Privacy</Label>
-                  <Select value={preferences.defaultProjectPrivacy} onValueChange={(value) => setPreferences(prev => ({ ...prev, defaultProjectPrivacy: value }))}>
+                  <Select value={preferences.defaultProjectPrivacy} onValueChange={(value: any) => setPreferences(prev => ({ ...prev, defaultProjectPrivacy: value }))}>
                     <SelectTrigger className="bg-background border-border">
                       <SelectValue />
                     </SelectTrigger>
@@ -339,31 +341,6 @@ export default function ProfilePage() {
                     checked={notifications.securityAlerts}
                     onCheckedChange={(checked) => setNotifications(prev => ({ ...prev, securityAlerts: checked }))}
                   />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Account Stats */}
-            <Card className="border-border bg-card">
-              <CardHeader>
-                <CardTitle className="text-foreground">Account Stats</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Total Recordings</span>
-                  <span className="font-semibold text-foreground">24</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Hours Transcribed</span>
-                  <span className="font-semibold text-foreground">12.5</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Projects Created</span>
-                  <span className="font-semibold text-foreground">6</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Storage Used</span>
-                  <span className="font-semibold text-foreground">2.1 GB</span>
                 </div>
               </CardContent>
             </Card>

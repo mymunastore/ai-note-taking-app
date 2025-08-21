@@ -25,11 +25,12 @@ export const get = api<GetNoteParams, Note>(
       organization_id: string | null;
       is_public: boolean;
       tags: string[];
+      project_id: number | null;
       created_at: Date;
       updated_at: Date;
     }>`
       SELECT id, title, transcript, summary, duration, original_language, translated, 
-             user_id, organization_id, is_public, tags, created_at, updated_at
+             user_id, organization_id, is_public, tags, project_id, created_at, updated_at
       FROM notes
       WHERE id = ${params.id} AND (user_id = ${auth.userID} OR is_public = true)
     `;
@@ -50,6 +51,7 @@ export const get = api<GetNoteParams, Note>(
       organizationId: row.organization_id || undefined,
       isPublic: row.is_public,
       tags: row.tags,
+      projectId: row.project_id || undefined,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };

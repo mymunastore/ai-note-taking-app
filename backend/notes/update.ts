@@ -37,6 +37,11 @@ export const update = api<UpdateNoteRequest, Note>(
       params.push(req.isPublic);
     }
 
+    if (req.projectId !== undefined) {
+      updates.push(`project_id = $${paramIndex++}`);
+      params.push(req.projectId);
+    }
+
     if (updates.length === 0) {
       throw APIError.invalidArgument("no fields to update");
     }
@@ -50,7 +55,7 @@ export const update = api<UpdateNoteRequest, Note>(
       SET ${updates.join(", ")}
       WHERE id = $${paramIndex++} AND user_id = $${paramIndex}
       RETURNING id, title, transcript, summary, duration, original_language, translated,
-                user_id, organization_id, is_public, tags, created_at, updated_at
+                user_id, organization_id, is_public, tags, project_id, created_at, updated_at
     `;
 
     const row = await notesDB.rawQueryRow<{
@@ -65,6 +70,7 @@ export const update = api<UpdateNoteRequest, Note>(
       organization_id: string | null;
       is_public: boolean;
       tags: string[];
+      project_id: number | null;
       created_at: Date;
       updated_at: Date;
     }>(query, ...params);
@@ -85,6 +91,7 @@ export const update = api<UpdateNoteRequest, Note>(
       organizationId: row.organization_id || undefined,
       isPublic: row.is_public,
       tags: row.tags,
+      projectId: row.project_id || undefined,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
