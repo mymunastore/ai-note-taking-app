@@ -93,8 +93,6 @@ export function useAuth() {
 
 // Enhanced backend client with premium features and retry logic
 export function useBackend() {
-  const { getToken } = useAuth();
-  
   // Create enhanced backend client with automatic retry and error handling
   const enhancedBackend = {
     ...backend,
@@ -106,9 +104,7 @@ export function useBackend() {
       transcribe: async (params: any, retries = 3) => {
         for (let i = 0; i < retries; i++) {
           try {
-            const token = await getToken();
-            const client = token ? backend.with({ auth: { authorization: `Bearer ${token}` } }) : backend;
-            return await client.ai.transcribe(params);
+            return await backend.ai.transcribe(params);
           } catch (error) {
             if (i === retries - 1) throw error;
             await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
@@ -119,9 +115,7 @@ export function useBackend() {
       summarize: async (params: any, retries = 3) => {
         for (let i = 0; i < retries; i++) {
           try {
-            const token = await getToken();
-            const client = token ? backend.with({ auth: { authorization: `Bearer ${token}` } }) : backend;
-            return await client.ai.summarize(params);
+            return await backend.ai.summarize(params);
           } catch (error) {
             if (i === retries - 1) throw error;
             await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
@@ -132,9 +126,7 @@ export function useBackend() {
       chat: async (params: any, retries = 3) => {
         for (let i = 0; i < retries; i++) {
           try {
-            const token = await getToken();
-            const client = token ? backend.with({ auth: { authorization: `Bearer ${token}` } }) : backend;
-            return await client.ai.chat(params);
+            return await backend.ai.chat(params);
           } catch (error) {
             if (i === retries - 1) throw error;
             await new Promise(resolve => setTimeout(resolve, 500 * (i + 1)));
@@ -145,9 +137,7 @@ export function useBackend() {
       advancedAnalysis: async (params: any, retries = 3) => {
         for (let i = 0; i < retries; i++) {
           try {
-            const token = await getToken();
-            const client = token ? backend.with({ auth: { authorization: `Bearer ${token}` } }) : backend;
-            return await client.ai.advancedAnalysis(params);
+            return await backend.ai.advancedAnalysis(params);
           } catch (error) {
             if (i === retries - 1) throw error;
             await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
@@ -158,9 +148,7 @@ export function useBackend() {
       generateSmartInsights: async (params: any, retries = 3) => {
         for (let i = 0; i < retries; i++) {
           try {
-            const token = await getToken();
-            const client = token ? backend.with({ auth: { authorization: `Bearer ${token}` } }) : backend;
-            return await client.ai.generateSmartInsights(params);
+            return await backend.ai.generateSmartInsights(params);
           } catch (error) {
             if (i === retries - 1) throw error;
             await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
@@ -171,9 +159,7 @@ export function useBackend() {
       createWorkflow: async (params: any, retries = 3) => {
         for (let i = 0; i < retries; i++) {
           try {
-            const token = await getToken();
-            const client = token ? backend.with({ auth: { authorization: `Bearer ${token}` } }) : backend;
-            return await client.ai.createWorkflow(params);
+            return await backend.ai.createWorkflow(params);
           } catch (error) {
             if (i === retries - 1) throw error;
             await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
@@ -184,9 +170,7 @@ export function useBackend() {
       listWorkflows: async (retries = 3) => {
         for (let i = 0; i < retries; i++) {
           try {
-            const token = await getToken();
-            const client = token ? backend.with({ auth: { authorization: `Bearer ${token}` } }) : backend;
-            return await client.ai.listWorkflows();
+            return await backend.ai.listWorkflows();
           } catch (error) {
             if (i === retries - 1) throw error;
             await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
@@ -197,9 +181,7 @@ export function useBackend() {
       generateSmartTemplate: async (params: any, retries = 3) => {
         for (let i = 0; i < retries; i++) {
           try {
-            const token = await getToken();
-            const client = token ? backend.with({ auth: { authorization: `Bearer ${token}` } }) : backend;
-            return await client.ai.generateSmartTemplate(params);
+            return await backend.ai.generateSmartTemplate(params);
           } catch (error) {
             if (i === retries - 1) throw error;
             await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
@@ -215,9 +197,7 @@ export function useBackend() {
       create: async (params: any, retries = 3) => {
         for (let i = 0; i < retries; i++) {
           try {
-            const token = await getToken();
-            const client = token ? backend.with({ auth: { authorization: `Bearer ${token}` } }) : backend;
-            return await client.notes.create(params);
+            return await backend.notes.create(params);
           } catch (error) {
             if (i === retries - 1) throw error;
             await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
@@ -228,9 +208,7 @@ export function useBackend() {
       list: async (params: any = {}, retries = 3) => {
         for (let i = 0; i < retries; i++) {
           try {
-            const token = await getToken();
-            const client = token ? backend.with({ auth: { authorization: `Bearer ${token}` } }) : backend;
-            return await client.notes.list(params);
+            return await backend.notes.list(params);
           } catch (error) {
             if (i === retries - 1) throw error;
             await new Promise(resolve => setTimeout(resolve, 500 * (i + 1)));
@@ -241,9 +219,7 @@ export function useBackend() {
       get: async (params: any, retries = 3) => {
         for (let i = 0; i < retries; i++) {
           try {
-            const token = await getToken();
-            const client = token ? backend.with({ auth: { authorization: `Bearer ${token}` } }) : backend;
-            return await client.notes.get(params);
+            return await backend.notes.get(params);
           } catch (error) {
             if (i === retries - 1) throw error;
             await new Promise(resolve => setTimeout(resolve, 500 * (i + 1)));
@@ -254,9 +230,7 @@ export function useBackend() {
       update: async (params: any, retries = 3) => {
         for (let i = 0; i < retries; i++) {
           try {
-            const token = await getToken();
-            const client = token ? backend.with({ auth: { authorization: `Bearer ${token}` } }) : backend;
-            return await client.notes.update(params);
+            return await backend.notes.update(params);
           } catch (error) {
             if (i === retries - 1) throw error;
             await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
@@ -267,9 +241,7 @@ export function useBackend() {
       deleteNote: async (params: any, retries = 3) => {
         for (let i = 0; i < retries; i++) {
           try {
-            const token = await getToken();
-            const client = token ? backend.with({ auth: { authorization: `Bearer ${token}` } }) : backend;
-            return await client.notes.deleteNote(params);
+            return await backend.notes.deleteNote(params);
           } catch (error) {
             if (i === retries - 1) throw error;
             await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
@@ -280,9 +252,7 @@ export function useBackend() {
       getAnalytics: async (retries = 3) => {
         for (let i = 0; i < retries; i++) {
           try {
-            const token = await getToken();
-            const client = token ? backend.with({ auth: { authorization: `Bearer ${token}` } }) : backend;
-            return await client.notes.getAnalytics();
+            return await backend.notes.getAnalytics();
           } catch (error) {
             if (i === retries - 1) throw error;
             await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
@@ -293,9 +263,7 @@ export function useBackend() {
       searchNotes: async (params: any, retries = 3) => {
         for (let i = 0; i < retries; i++) {
           try {
-            const token = await getToken();
-            const client = token ? backend.with({ auth: { authorization: `Bearer ${token}` } }) : backend;
-            return await client.notes.searchNotes(params);
+            return await backend.notes.searchNotes(params);
           } catch (error) {
             if (i === retries - 1) throw error;
             await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
@@ -306,9 +274,7 @@ export function useBackend() {
       exportNotes: async (params: any, retries = 3) => {
         for (let i = 0; i < retries; i++) {
           try {
-            const token = await getToken();
-            const client = token ? backend.with({ auth: { authorization: `Bearer ${token}` } }) : backend;
-            return await client.notes.exportNotes(params);
+            return await backend.notes.exportNotes(params);
           } catch (error) {
             if (i === retries - 1) throw error;
             await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
@@ -324,9 +290,7 @@ export function useBackend() {
       create: async (params: any, retries = 3) => {
         for (let i = 0; i < retries; i++) {
           try {
-            const token = await getToken();
-            const client = token ? backend.with({ auth: { authorization: `Bearer ${token}` } }) : backend;
-            return await client.projects.create(params);
+            return await backend.projects.create(params);
           } catch (error) {
             if (i === retries - 1) throw error;
             await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
@@ -337,9 +301,7 @@ export function useBackend() {
       list: async (retries = 3) => {
         for (let i = 0; i < retries; i++) {
           try {
-            const token = await getToken();
-            const client = token ? backend.with({ auth: { authorization: `Bearer ${token}` } }) : backend;
-            return await client.projects.list();
+            return await backend.projects.list();
           } catch (error) {
             if (i === retries - 1) throw error;
             await new Promise(resolve => setTimeout(resolve, 500 * (i + 1)));
@@ -350,9 +312,7 @@ export function useBackend() {
       get: async (params: any, retries = 3) => {
         for (let i = 0; i < retries; i++) {
           try {
-            const token = await getToken();
-            const client = token ? backend.with({ auth: { authorization: `Bearer ${token}` } }) : backend;
-            return await client.projects.get(params);
+            return await backend.projects.get(params);
           } catch (error) {
             if (i === retries - 1) throw error;
             await new Promise(resolve => setTimeout(resolve, 500 * (i + 1)));
@@ -363,9 +323,7 @@ export function useBackend() {
       update: async (params: any, retries = 3) => {
         for (let i = 0; i < retries; i++) {
           try {
-            const token = await getToken();
-            const client = token ? backend.with({ auth: { authorization: `Bearer ${token}` } }) : backend;
-            return await client.projects.update(params);
+            return await backend.projects.update(params);
           } catch (error) {
             if (i === retries - 1) throw error;
             await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
@@ -376,9 +334,7 @@ export function useBackend() {
       deleteProject: async (params: any, retries = 3) => {
         for (let i = 0; i < retries; i++) {
           try {
-            const token = await getToken();
-            const client = token ? backend.with({ auth: { authorization: `Bearer ${token}` } }) : backend;
-            return await client.projects.deleteProject(params);
+            return await backend.projects.deleteProject(params);
           } catch (error) {
             if (i === retries - 1) throw error;
             await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));

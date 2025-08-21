@@ -2,7 +2,6 @@ import { api, APIError } from "encore.dev/api";
 import { secret } from "encore.dev/config";
 
 const openAIKey = secret("OpenAIKey");
-const cohereApiKey = secret("CohereApiKey");
 
 interface AdvancedAnalysisRequest {
   transcript: string;
@@ -197,87 +196,73 @@ async function performSpecificAnalysis(transcript: string, analysisType: string)
       "engagement_level": 0.0-1.0
     }`,
     emotions: `Identify emotions in this transcript and return a JSON response:
-    {
-      "emotions": [
-        {
-          "emotion": "emotion name",
-          "intensity": 0.0-1.0,
-          "context": "contextual explanation"
-        }
-      ]
-    }`,
+    [
+      {
+        "emotion": "emotion name",
+        "intensity": 0.0-1.0,
+        "context": "contextual explanation"
+      }
+    ]`,
     topics: `Extract topics from this transcript and return a JSON response:
-    {
-      "topics": [
-        {
-          "topic": "topic name",
-          "relevance": 0.0-1.0,
-          "mentions": number,
-          "sentiment": "positive|negative|neutral",
-          "keywords": ["keyword1", "keyword2"]
-        }
-      ]
-    }`,
+    [
+      {
+        "topic": "topic name",
+        "relevance": 0.0-1.0,
+        "mentions": number,
+        "sentiment": "positive|negative|neutral",
+        "keywords": ["keyword1", "keyword2"]
+      }
+    ]`,
     speakers: `Analyze speakers in this transcript and return a JSON response:
-    {
-      "speakers": [
-        {
-          "speaker": "speaker identifier",
-          "segments": number,
-          "speaking_time": percentage,
-          "keyPoints": ["point1", "point2"],
-          "communication_style": "description",
-          "engagement_score": 0.0-1.0
-        }
-      ]
-    }`,
+    [
+      {
+        "speaker": "speaker identifier",
+        "segments": number,
+        "speaking_time": percentage,
+        "keyPoints": ["point1", "point2"],
+        "communication_style": "description",
+        "engagement_score": 0.0-1.0
+      }
+    ]`,
     action_items: `Extract action items and return a JSON response:
-    {
-      "actionItems": [
-        {
-          "item": "action description",
-          "assignee": "person responsible",
-          "priority": "critical|high|medium|low",
-          "deadline": "deadline if mentioned",
-          "category": "category type",
-          "estimated_effort": "effort estimate"
-        }
-      ]
-    }`,
+    [
+      {
+        "item": "action description",
+        "assignee": "person responsible",
+        "priority": "critical|high|medium|low",
+        "deadline": "deadline if mentioned",
+        "category": "category type",
+        "estimated_effort": "effort estimate"
+      }
+    ]`,
     decisions: `Identify decisions made and return a JSON response:
-    {
-      "decisions": [
-        {
-          "decision": "decision description",
-          "decision_maker": "person who decided",
-          "impact_level": "high|medium|low",
-          "rationale": "reasoning behind decision",
-          "follow_up_required": true|false
-        }
-      ]
-    }`,
+    [
+      {
+        "decision": "decision description",
+        "decision_maker": "person who decided",
+        "impact_level": "high|medium|low",
+        "rationale": "reasoning behind decision",
+        "follow_up_required": true|false
+      }
+    ]`,
     risks: `Identify risks and return a JSON response:
-    {
-      "risks": [
-        {
-          "risk": "risk description",
-          "severity": "critical|high|medium|low",
-          "probability": 0.0-1.0,
-          "mitigation_suggestions": ["suggestion1", "suggestion2"]
-        }
-      ]
-    }`,
+    [
+      {
+        "risk": "risk description",
+        "severity": "critical|high|medium|low",
+        "probability": 0.0-1.0,
+        "mitigation_suggestions": ["suggestion1", "suggestion2"]
+      }
+    ]`,
     opportunities: `Identify opportunities and return a JSON response:
-    {
-      "opportunities": [
-        {
-          "opportunity": "opportunity description",
-          "potential_value": "high|medium|low",
-          "effort_required": "effort description",
-          "timeline": "estimated timeline"
-        }
-      ]
-    }`,
+    [
+      {
+        "opportunity": "opportunity description",
+        "potential_value": "high|medium|low",
+        "effort_required": "effort description",
+        "timeline": "estimated timeline"
+      }
+    ]`,
     compliance: `Analyze compliance aspects and return a JSON response:
     {
       "issues_identified": ["issue1", "issue2"],
@@ -323,7 +308,17 @@ async function performSpecificAnalysis(transcript: string, analysisType: string)
     throw new Error("No analysis result received");
   }
 
-  return JSON.parse(analysisText);
+  const parsedResult = JSON.parse(analysisText);
+  
+  // Return the parsed result directly for sentiment, or the array/object for others
+  if (analysisType === 'sentiment') {
+    return parsedResult;
+  } else if (Array.isArray(parsedResult)) {
+    return parsedResult;
+  } else {
+    // For objects like compliance and meeting_quality
+    return parsedResult;
+  }
 }
 
 async function performCustomAnalysis(transcript: string, customPrompt: { name: string; prompt: string }) {
