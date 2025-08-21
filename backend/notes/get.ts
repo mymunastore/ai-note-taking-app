@@ -7,7 +7,7 @@ interface GetNoteParams {
 }
 
 // Retrieves a specific note by ID.
-export const get = api<GetNoteParams, Note>(
+export const getNote = api<GetNoteParams, Note>(
   { expose: true, method: "GET", path: "/notes/:id" },
   async (params) => {
     const row = await notesDB.queryRow<{

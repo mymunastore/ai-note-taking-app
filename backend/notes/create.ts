@@ -3,7 +3,7 @@ import { notesDB } from "./db";
 import type { CreateNoteRequest, Note } from "./types";
 
 // Creates a new note with transcript and summary.
-export const create = api<CreateNoteRequest, Note>(
+export const createNote = api<CreateNoteRequest, Note>(
   { expose: true, method: "POST", path: "/notes" },
   async (req) => {
     try {

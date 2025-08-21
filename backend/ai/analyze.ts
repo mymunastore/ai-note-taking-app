@@ -49,7 +49,7 @@ export const analyzeTranscript = api<AnalyzeTranscriptRequest, AnalyzeTranscript
 
       switch (req.analysisType) {
         case "sentiment":
-          systemPrompt = "You are an expert at analyzing sentiment in conversations and meetings. Analyze the overall sentiment, confidence level, and provide detailed insights.";
+          systemPrompt = "You are an expert at analyzing sentiment in conversations and meetings. Analyze the overall sentiment, confidence level, and provide detailed insights. Only return a valid JSON object. No prose.";
           userPrompt = `Analyze the sentiment of this transcript and return a JSON response with:
           {
             "sentiment": {
@@ -63,7 +63,7 @@ export const analyzeTranscript = api<AnalyzeTranscriptRequest, AnalyzeTranscript
           break;
 
         case "topics":
-          systemPrompt = "You are an expert at identifying and categorizing topics in conversations. Extract the main topics discussed and their relevance.";
+          systemPrompt = "You are an expert at identifying and categorizing topics in conversations. Extract the main topics discussed and their relevance. Only return a valid JSON object. No prose.";
           userPrompt = `Identify the main topics discussed in this transcript and return a JSON response with:
           {
             "topics": [
@@ -79,7 +79,7 @@ export const analyzeTranscript = api<AnalyzeTranscriptRequest, AnalyzeTranscript
           break;
 
         case "speakers":
-          systemPrompt = "You are an expert at identifying speakers and their contributions in conversations. Analyze speaker patterns and key points.";
+          systemPrompt = "You are an expert at identifying speakers and their contributions in conversations. Analyze speaker patterns and key points. Only return a valid JSON object. No prose.";
           userPrompt = `Analyze the speakers in this transcript and return a JSON response with:
           {
             "speakers": [
@@ -95,7 +95,7 @@ export const analyzeTranscript = api<AnalyzeTranscriptRequest, AnalyzeTranscript
           break;
 
         case "action_items":
-          systemPrompt = "You are an expert at extracting action items, tasks, and commitments from meeting transcripts.";
+          systemPrompt = "You are an expert at extracting action items, tasks, and commitments from meeting transcripts. Only return a valid JSON object. No prose.";
           userPrompt = `Extract action items from this transcript and return a JSON response with:
           {
             "actionItems": [
@@ -112,7 +112,7 @@ export const analyzeTranscript = api<AnalyzeTranscriptRequest, AnalyzeTranscript
           break;
 
         case "summary_insights":
-          systemPrompt = "You are an expert at extracting key insights, decisions, and important information from meeting transcripts.";
+          systemPrompt = "You are an expert at extracting key insights, decisions, and important information from meeting transcripts. Only return a valid JSON object. No prose.";
           userPrompt = `Extract key insights from this transcript and return a JSON response with:
           {
             "insights": {
@@ -142,8 +142,7 @@ export const analyzeTranscript = api<AnalyzeTranscriptRequest, AnalyzeTranscript
             { role: "user", content: userPrompt }
           ],
           temperature: 0.3,
-          max_tokens: 1000,
-          response_format: { type: "json_object" }
+          max_tokens: 1000
         }),
       });
 
@@ -159,7 +158,16 @@ export const analyzeTranscript = api<AnalyzeTranscriptRequest, AnalyzeTranscript
         throw APIError.internal("No analysis result received");
       }
 
-      const analysis = JSON.parse(analysisText);
+      let analysis: AnalyzeTranscriptResponse["analysis"];
+      try {
+        analysis = JSON.parse(analysisText);
+      } catch (e) {
+        // Attempt to extract JSON if there is any extra text
+        const match = analysisText.match(/\{[\s\S]*\}$/);
+        if (!match) throw APIError.internal("Invalid JSON returned from model");
+        analysis = JSON.parse(match[0]);
+      }
+
       return { analysis };
 
     } catch (error) {

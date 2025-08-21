@@ -65,20 +65,19 @@ export const getAnalytics = api<void, AnalyticsResponse>(
         percentage: totalRecordings > 0 ? (stat.count / totalRecordings) * 100 : 0
       }));
 
-      // Get tags breakdown
-      const tagsStats = await notesDB.queryAll<{
+      // Get tags breakdown (fix: proper unnest and group by)
+      const tagsStats = await notesDB.rawQueryAll<{
         tag: string;
         count: number;
-      }>`
-        SELECT 
-          unnest(tags) as tag,
-          COUNT(*) as count
-        FROM notes
-        WHERE array_length(tags, 1) > 0
-        GROUP BY unnest(tags)
+      }>(
+        `
+        SELECT tag, COUNT(*) as count
+        FROM notes, unnest(tags) AS tag
+        GROUP BY tag
         ORDER BY count DESC
         LIMIT 10
-      `;
+        `
+      );
 
       // Get monthly activity for the last 6 months
       const monthlyStats = await notesDB.queryAll<{

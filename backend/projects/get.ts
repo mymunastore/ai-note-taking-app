@@ -7,7 +7,7 @@ interface GetProjectParams {
 }
 
 // Retrieves a specific project by ID.
-export const get = api<GetProjectParams, Project>(
+export const getProject = api<GetProjectParams, Project>(
   { expose: true, method: "GET", path: "/projects/:id" },
   async (params) => {
     const row = await projectsDB.queryRow<{

@@ -3,7 +3,7 @@ import { projectsDB } from "./db";
 import type { UpdateProjectRequest, Project } from "./types";
 
 // Updates a project.
-export const update = api<UpdateProjectRequest, Project>(
+export const updateProject = api<UpdateProjectRequest, Project>(
   { expose: true, method: "PUT", path: "/projects/:id" },
   async (req) => {
     if (!req.id) {

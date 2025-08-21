@@ -11,8 +11,43 @@ interface ListNotesParams {
   projectId?: Query<number>;
 }
 
+function buildWhereClause(
+  opts: {
+    search?: string;
+    tags: string[];
+    projectId?: number;
+  },
+  paramStart: number
+) {
+  const conditions: string[] = ["1=1"];
+  const params: any[] = [];
+  let idx = paramStart;
+
+  if (opts.search) {
+    conditions.push(
+      `to_tsvector('english', title || ' ' || transcript) @@ plainto_tsquery('english', $${idx})`
+    );
+    params.push(opts.search);
+    idx++;
+  }
+
+  if (opts.tags.length > 0) {
+    conditions.push(`tags && $${idx}`);
+    params.push(opts.tags);
+    idx++;
+  }
+
+  if (opts.projectId) {
+    conditions.push(`project_id = $${idx}`);
+    params.push(opts.projectId);
+    idx++;
+  }
+
+  return { clause: `WHERE ${conditions.join(" AND ")}`, params };
+}
+
 // Retrieves all notes with optional search and pagination.
-export const list = api<ListNotesParams, ListNotesResponse>(
+export const listNotes = api<ListNotesParams, ListNotesResponse>(
   { expose: true, method: "GET", path: "/notes" },
   async (params) => {
     const limit = params.limit || 50;
@@ -21,41 +56,21 @@ export const list = api<ListNotesParams, ListNotesResponse>(
     const tags = params.tags?.split(",").filter(Boolean) || [];
     const projectId = params.projectId;
 
-    let whereConditions = ["1=1"];
-    let queryParams: any[] = [limit, offset];
-    let paramIndex = 3;
+    // Build where clauses separately to ensure correct parameter indexing
+    const countWhere = buildWhereClause({ search, tags, projectId }, 1);
+    const notesWhere = buildWhereClause({ search, tags, projectId }, 3);
 
-    if (search) {
-      whereConditions.push(`to_tsvector('english', title || ' ' || transcript) @@ plainto_tsquery('english', $${paramIndex})`);
-      queryParams.push(search);
-      paramIndex++;
-    }
-
-    if (tags.length > 0) {
-      whereConditions.push(`tags && $${paramIndex}`);
-      queryParams.push(tags);
-      paramIndex++;
-    }
-
-    if (projectId) {
-      whereConditions.push(`project_id = $${paramIndex}`);
-      queryParams.push(projectId);
-      paramIndex++;
-    }
-
-    const whereClause = `WHERE ${whereConditions.join(" AND ")}`;
-
-    const countQuery = `SELECT COUNT(*) as total FROM notes ${whereClause}`;
+    const countQuery = `SELECT COUNT(*) as total FROM notes ${countWhere.clause}`;
     const notesQuery = `
       SELECT id, title, transcript, summary, duration, original_language, translated, 
              is_public, tags, project_id, created_at, updated_at 
-      FROM notes ${whereClause}
+      FROM notes ${notesWhere.clause}
       ORDER BY created_at DESC 
       LIMIT $1 OFFSET $2
     `;
 
     const [countResult, notesResult] = await Promise.all([
-      notesDB.rawQueryRow<{ total: number }>(countQuery, ...queryParams.slice(2)),
+      notesDB.rawQueryRow<{ total: number }>(countQuery, ...countWhere.params),
       notesDB.rawQueryAll<{
         id: number;
         title: string;
@@ -69,7 +84,7 @@ export const list = api<ListNotesParams, ListNotesResponse>(
         project_id: number | null;
         created_at: Date;
         updated_at: Date;
-      }>(notesQuery, ...queryParams),
+      }>(notesQuery, limit, offset, ...notesWhere.params),
     ]);
 
     const total = countResult?.total || 0;

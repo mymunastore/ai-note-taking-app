@@ -16,6 +16,74 @@ interface SearchNotesResponse {
   suggestions: string[];
 }
 
+function buildWhereClause(
+  query: string,
+  filters: any,
+  paramStart: number
+) {
+  const conditions: string[] = ["1=1"];
+  const params: any[] = [];
+  let idx = paramStart;
+
+  if (filters.dateFrom) {
+    conditions.push(`created_at >= $${idx}`);
+    params.push(new Date(filters.dateFrom));
+    idx++;
+  }
+
+  if (filters.dateTo) {
+    conditions.push(`created_at <= $${idx}`);
+    params.push(new Date(filters.dateTo));
+    idx++;
+  }
+
+  if (filters.minDuration) {
+    conditions.push(`duration >= $${idx}`);
+    params.push(filters.minDuration);
+    idx++;
+  }
+
+  if (filters.maxDuration) {
+    conditions.push(`duration <= $${idx}`);
+    params.push(filters.maxDuration);
+    idx++;
+  }
+
+  if (filters.language) {
+    conditions.push(`original_language = $${idx}`);
+    params.push(filters.language);
+    idx++;
+  }
+
+  if (filters.tags && Array.isArray(filters.tags) && filters.tags.length > 0) {
+    conditions.push(`tags && $${idx}`);
+    params.push(filters.tags);
+    idx++;
+  }
+
+  const plainQueryPos = idx;
+  const likeQueryPos = idx + 1;
+
+  const searchCondition = `
+    (
+      to_tsvector('english', title || ' ' || transcript || ' ' || summary) @@ plainto_tsquery('english', $${plainQueryPos})
+      OR title ILIKE $${likeQueryPos}
+      OR transcript ILIKE $${likeQueryPos}
+      OR summary ILIKE $${likeQueryPos}
+    )
+  `;
+
+  conditions.push(searchCondition);
+  params.push(query);
+  params.push(`%${query}%`);
+
+  return {
+    clause: `WHERE ${conditions.join(" AND ")}`,
+    params,
+    plainQueryPos,
+  };
+}
+
 // Advanced search across notes with semantic search capabilities.
 export const searchNotes = api<SearchNotesParams, SearchNotesResponse>(
   { expose: true, method: "GET", path: "/notes/search" },
@@ -39,81 +107,26 @@ export const searchNotes = api<SearchNotesParams, SearchNotesResponse>(
         }
       }
 
-      let whereConditions = ["1=1"];
-      let queryParams: any[] = [limit, offset];
-      let paramIndex = 3;
+      const countWhere = buildWhereClause(query, filters, 1);
+      const listWhere = buildWhereClause(query, filters, 3);
 
-      // Add date range filter
-      if (filters.dateFrom) {
-        whereConditions.push(`created_at >= $${paramIndex}`);
-        queryParams.push(new Date(filters.dateFrom));
-        paramIndex++;
-      }
-
-      if (filters.dateTo) {
-        whereConditions.push(`created_at <= $${paramIndex}`);
-        queryParams.push(new Date(filters.dateTo));
-        paramIndex++;
-      }
-
-      // Add duration filter
-      if (filters.minDuration) {
-        whereConditions.push(`duration >= $${paramIndex}`);
-        queryParams.push(filters.minDuration);
-        paramIndex++;
-      }
-
-      if (filters.maxDuration) {
-        whereConditions.push(`duration <= $${paramIndex}`);
-        queryParams.push(filters.maxDuration);
-        paramIndex++;
-      }
-
-      // Add language filter
-      if (filters.language) {
-        whereConditions.push(`original_language = $${paramIndex}`);
-        queryParams.push(filters.language);
-        paramIndex++;
-      }
-
-      // Add tags filter
-      if (filters.tags && Array.isArray(filters.tags) && filters.tags.length > 0) {
-        whereConditions.push(`tags && $${paramIndex}`);
-        queryParams.push(filters.tags);
-        paramIndex++;
-      }
-
-      // Full-text search with ranking
-      const searchCondition = `
-        (
-          to_tsvector('english', title || ' ' || transcript || ' ' || summary) @@ plainto_tsquery('english', $${paramIndex})
-          OR title ILIKE $${paramIndex + 1}
-          OR transcript ILIKE $${paramIndex + 1}
-          OR summary ILIKE $${paramIndex + 1}
-        )
-      `;
-      whereConditions.push(searchCondition);
-      queryParams.push(query);
-      queryParams.push(`%${query}%`);
-      paramIndex += 2;
-
-      const whereClause = `WHERE ${whereConditions.join(" AND ")}`;
-
-      // Search query with relevance ranking
       const searchQuery = `
         SELECT 
           id, title, transcript, summary, duration, original_language, translated,
           is_public, tags, project_id, created_at, updated_at,
-          ts_rank(to_tsvector('english', title || ' ' || transcript || ' ' || summary), plainto_tsquery('english', $${queryParams.indexOf(query) + 1})) as rank
-        FROM notes ${whereClause}
+          ts_rank(
+            to_tsvector('english', title || ' ' || transcript || ' ' || summary),
+            plainto_tsquery('english', $${listWhere.params.length - 1})
+          ) as rank
+        FROM notes ${listWhere.clause}
         ORDER BY rank DESC, created_at DESC
         LIMIT $1 OFFSET $2
       `;
 
-      const countQuery = `SELECT COUNT(*) as total FROM notes ${whereClause}`;
+      const countQuery = `SELECT COUNT(*) as total FROM notes ${countWhere.clause}`;
 
       const [countResult, notesResult] = await Promise.all([
-        notesDB.rawQueryRow<{ total: number }>(countQuery, ...queryParams.slice(2)),
+        notesDB.rawQueryRow<{ total: number }>(countQuery, ...countWhere.params),
         notesDB.rawQueryAll<{
           id: number;
           title: string;
@@ -128,7 +141,7 @@ export const searchNotes = api<SearchNotesParams, SearchNotesResponse>(
           created_at: Date;
           updated_at: Date;
           rank: number;
-        }>(searchQuery, ...queryParams),
+        }>(searchQuery, limit, offset, ...listWhere.params),
       ]);
 
       const total = countResult?.total || 0;
@@ -149,9 +162,9 @@ export const searchNotes = api<SearchNotesParams, SearchNotesResponse>(
 
       // Generate search suggestions based on existing content
       const suggestionsQuery = `
-        SELECT DISTINCT unnest(tags) as suggestion
-        FROM notes
-        WHERE unnest(tags) ILIKE $1
+        SELECT DISTINCT t.tag as suggestion
+        FROM notes, unnest(tags) as t(tag)
+        WHERE t.tag ILIKE $1
         LIMIT 5
       `;
 

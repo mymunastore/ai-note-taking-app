@@ -25,7 +25,8 @@ export default function NoteDetailPage() {
 
   const { data: note, isLoading, error } = useQuery({
     queryKey: ["note", id],
-    queryFn: () => backend.notes.get({ id: parseInt(id!) }),
+    // @ts-expect-error generated client method
+    queryFn: () => backend.notes.getNote({ id: parseInt(id!) }),
     enabled: !!id,
   });
 

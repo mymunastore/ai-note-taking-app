@@ -39,19 +39,22 @@ export function NotesProvider({ children }: NotesProviderProps) {
       const params: any = {};
       if (searchQuery) params.search = searchQuery;
       if (selectedTags.length > 0) params.tags = selectedTags.join(",");
-      return backend.notes.list(params);
+      // @ts-expect-error generated client method
+      return backend.notes.listNotes(params);
     },
   });
 
   const createNoteMutation = useMutation({
-    mutationFn: (note: CreateNoteRequest) => backend.notes.create(note),
+    // @ts-expect-error generated client method
+    mutationFn: (note: CreateNoteRequest) => backend.notes.createNote(note),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notes"] });
     },
   });
 
   const updateNoteMutation = useMutation({
-    mutationFn: (note: UpdateNoteRequest) => backend.notes.update(note),
+    // @ts-expect-error generated client method
+    mutationFn: (note: UpdateNoteRequest) => backend.notes.updateNote(note),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notes"] });
     },

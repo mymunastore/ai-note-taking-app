@@ -123,11 +123,18 @@ export const advancedAnalysis = api<AdvancedAnalysisRequest, AdvancedAnalysisRes
         stakeholder_actions: []
       };
 
+      // For mapping snake_case keys to camelCase properties in the response
+      const keyMap: Record<string, string> = {
+        action_items: "actionItems",
+        meeting_quality: "meetingQuality",
+      };
+
       // Process each analysis type
       for (const analysisType of req.analysisTypes) {
         try {
           const result = await performSpecificAnalysis(req.transcript, analysisType);
-          analysis[analysisType] = result;
+          const key = keyMap[analysisType] || analysisType;
+          analysis[key] = result;
         } catch (error) {
           console.warn(`Failed to perform ${analysisType} analysis:`, error);
         }
@@ -159,9 +166,9 @@ export const advancedAnalysis = api<AdvancedAnalysisRequest, AdvancedAnalysisRes
         metadata: {
           processing_time: processingTime,
           confidence_score: calculateConfidenceScore(analysis),
-          language_detected: "en", // Would be detected in real implementation
+          language_detected: "en",
           word_count: wordCount,
-          estimated_reading_time: Math.ceil(wordCount / 200) // 200 words per minute
+          estimated_reading_time: Math.ceil(wordCount / 200)
         }
       };
 
@@ -174,16 +181,16 @@ export const advancedAnalysis = api<AdvancedAnalysisRequest, AdvancedAnalysisRes
 
 async function performSpecificAnalysis(transcript: string, analysisType: string) {
   const systemPrompts = {
-    sentiment: `You are an expert at analyzing sentiment and emotional tone in business communications. Provide detailed sentiment analysis with emotional context and engagement metrics.`,
-    emotions: `You are an expert at detecting emotions and emotional patterns in conversations. Identify specific emotions, their intensity, and contextual triggers.`,
-    topics: `You are an expert at topic modeling and content analysis. Extract main topics with relevance scores, sentiment per topic, and associated keywords.`,
-    speakers: `You are an expert at analyzing speaker patterns and communication styles. Evaluate speaking time, engagement, communication effectiveness, and individual contributions.`,
-    action_items: `You are an expert at extracting actionable items from meetings and conversations. Identify tasks, assignments, priorities, and effort estimates.`,
-    decisions: `You are an expert at identifying decisions made during meetings. Extract decisions, decision makers, impact levels, and rationale.`,
-    risks: `You are an expert at risk analysis and identification. Identify potential risks, assess severity and probability, and suggest mitigation strategies.`,
-    opportunities: `You are an expert at opportunity identification and business analysis. Identify potential opportunities, assess value and effort required.`,
-    compliance: `You are an expert at compliance and regulatory analysis. Identify potential compliance issues and provide recommendations.`,
-    meeting_quality: `You are an expert at meeting effectiveness analysis. Evaluate meeting quality, participation, agenda adherence, and provide improvement recommendations.`
+    sentiment: `You are an expert at analyzing sentiment and emotional tone in business communications. Provide detailed sentiment analysis with emotional context and engagement metrics. Only return valid JSON without any additional text.`,
+    emotions: `You are an expert at detecting emotions and emotional patterns in conversations. Identify specific emotions, their intensity, and contextual triggers. Only return valid JSON without any additional text.`,
+    topics: `You are an expert at topic modeling and content analysis. Extract main topics with relevance scores, sentiment per topic, and associated keywords. Only return valid JSON without any additional text.`,
+    speakers: `You are an expert at analyzing speaker patterns and communication styles. Evaluate speaking time, engagement, communication effectiveness, and individual contributions. Only return valid JSON without any additional text.`,
+    action_items: `You are an expert at extracting actionable items from meetings and conversations. Identify tasks, assignments, priorities, and effort estimates. Only return valid JSON without any additional text.`,
+    decisions: `You are an expert at identifying decisions made during meetings. Extract decisions, decision makers, impact levels, and rationale. Only return valid JSON without any additional text.`,
+    risks: `You are an expert at risk analysis and identification. Identify potential risks, assess severity and probability, and suggest mitigation strategies. Only return valid JSON without any additional text.`,
+    opportunities: `You are an expert at opportunity identification and business analysis. Identify potential opportunities, assess value and effort required. Only return valid JSON without any additional text.`,
+    compliance: `You are an expert at compliance and regulatory analysis. Identify potential compliance issues and provide recommendations. Only return valid JSON without any additional text.`,
+    meeting_quality: `You are an expert at meeting effectiveness analysis. Evaluate meeting quality, participation, agenda adherence, and provide improvement recommendations. Only return valid JSON without any additional text.`
   };
 
   const userPrompts = {
@@ -292,8 +299,7 @@ async function performSpecificAnalysis(transcript: string, analysisType: string)
         { role: "user", content: `${userPrompts[analysisType as keyof typeof userPrompts]}\n\nTranscript: ${transcript}` }
       ],
       temperature: 0.3,
-      max_tokens: 2000,
-      response_format: { type: "json_object" }
+      max_tokens: 2000
     }),
   });
 
@@ -308,17 +314,16 @@ async function performSpecificAnalysis(transcript: string, analysisType: string)
     throw new Error("No analysis result received");
   }
 
-  const parsedResult = JSON.parse(analysisText);
-  
-  // Return the parsed result directly for sentiment, or the array/object for others
-  if (analysisType === 'sentiment') {
-    return parsedResult;
-  } else if (Array.isArray(parsedResult)) {
-    return parsedResult;
-  } else {
-    // For objects like compliance and meeting_quality
-    return parsedResult;
+  let parsedResult: any;
+  try {
+    parsedResult = JSON.parse(analysisText);
+  } catch {
+    const match = analysisText.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
+    if (!match) throw new Error("Invalid JSON in analysis result");
+    parsedResult = JSON.parse(match[0]);
   }
+  
+  return parsedResult;
 }
 
 async function performCustomAnalysis(transcript: string, customPrompt: { name: string; prompt: string }) {
@@ -331,11 +336,11 @@ async function performCustomAnalysis(transcript: string, customPrompt: { name: s
     body: JSON.stringify({
       model: "gpt-4o",
       messages: [
-        { role: "system", content: "You are an expert analyst. Provide detailed analysis based on the custom prompt provided." },
+        { role: "system", content: "You are an expert analyst. Provide detailed analysis based on the custom prompt provided. Only return the analysis text." },
         { role: "user", content: `${customPrompt.prompt}\n\nTranscript: ${transcript}` }
       ],
       temperature: 0.3,
-      max_tokens: 1000,
+      max_tokens: 1000
     }),
   });
 
@@ -362,7 +367,7 @@ async function generateComprehensiveInsights(transcript: string, analysis: any) 
       messages: [
         { 
           role: "system", 
-          content: "You are an expert at synthesizing meeting analysis into actionable insights. Generate comprehensive insights including key takeaways, next steps, follow-up meetings, and stakeholder actions." 
+          content: "You are an expert at synthesizing meeting analysis into actionable insights. Generate comprehensive insights including key takeaways, next steps, follow-up meetings, and stakeholder actions. Only return valid JSON without any extra text." 
         },
         { 
           role: "user", 
@@ -384,8 +389,7 @@ async function generateComprehensiveInsights(transcript: string, analysis: any) 
         }
       ],
       temperature: 0.3,
-      max_tokens: 1500,
-      response_format: { type: "json_object" }
+      max_tokens: 1500
     }),
   });
 

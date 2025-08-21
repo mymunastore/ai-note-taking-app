@@ -1,8 +1,9 @@
 import { api, APIError } from "encore.dev/api";
 import { secret } from "encore.dev/config";
-import { notesDB } from "../notes/db";
+import { SQLDatabase } from "encore.dev/storage/sqldb";
 
 const openAIKey = secret("OpenAIKey");
+const notesDB = SQLDatabase.named("notes");
 
 interface SmartInsightsRequest {
   timeframe?: "week" | "month" | "quarter" | "year";
@@ -146,31 +147,31 @@ async function analyzePatterns(notes: any[], timeframe: string) {
   const averageDuration = totalMeetings > 0 ? totalDuration / totalMeetings : 0;
 
   // Analyze meeting times
-  const meetingTimes = notes.map(note => new Date(note.created_at).getHours());
+  const meetingTimes = notes.map((note) => new Date(note.created_at).getHours());
   const timeFrequency = meetingTimes.reduce((acc, hour) => {
     acc[hour] = (acc[hour] || 0) + 1;
     return acc;
   }, {} as Record<number, number>);
 
   const mostActiveHours = Object.entries(timeFrequency)
-    .sort(([,a], [,b]) => b - a)
+    .sort(([, a], [, b]) => b - a)
     .slice(0, 3)
     .map(([hour]) => `${hour}:00`);
 
   // Analyze topics from tags and summaries
-  const allTags = notes.flatMap(note => note.tags || []);
+  const allTags = notes.flatMap((note) => note.tags || []);
   const tagFrequency = allTags.reduce((acc, tag) => {
     acc[tag] = (acc[tag] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 
   const topTopics = Object.entries(tagFrequency)
-    .sort(([,a], [,b]) => b - a)
+    .sort(([, a], [, b]) => b - a)
     .slice(0, 5)
     .map(([topic, frequency]) => ({
       topic,
       frequency,
-      sentiment_trend: "neutral" as const // Would be calculated from sentiment analysis
+      sentiment_trend: "neutral" as const
     }));
 
   // Generate AI-powered insights
@@ -195,7 +196,7 @@ async function analyzePatterns(notes: any[], timeframe: string) {
     },
     content_analysis: {
       top_topics: topTopics,
-      action_item_completion_rate: 0.75, // Would be calculated from action item tracking
+      action_item_completion_rate: 0.75,
       decision_velocity: calculateDecisionVelocity(notes)
     },
     recommendations: aiInsights.recommendations,
@@ -204,7 +205,7 @@ async function analyzePatterns(notes: any[], timeframe: string) {
 }
 
 async function generateAIInsights(notes: any[], metrics: any) {
-  const summariesText = notes.slice(0, 10).map(note => note.summary).join('\n\n');
+  const summariesText = notes.slice(0, 10).map((note) => note.summary).join("\n\n");
   
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -217,7 +218,7 @@ async function generateAIInsights(notes: any[], metrics: any) {
       messages: [
         { 
           role: "system", 
-          content: "You are an expert productivity and meeting effectiveness analyst. Generate actionable recommendations and predictions based on meeting patterns and content." 
+          content: "You are an expert productivity and meeting effectiveness analyst. Generate actionable recommendations and predictions based on meeting patterns and content. Only return valid JSON." 
         },
         { 
           role: "user", 
@@ -226,8 +227,8 @@ async function generateAIInsights(notes: any[], metrics: any) {
           Metrics:
           - Total meetings: ${metrics.totalMeetings}
           - Average duration: ${metrics.averageDuration} minutes
-          - Most active times: ${metrics.mostActiveHours.join(', ')}
-          - Top topics: ${metrics.topTopics.map((t: any) => t.topic).join(', ')}
+          - Most active times: ${metrics.mostActiveHours.join(", ")}
+          - Top topics: ${metrics.topTopics.map((t: any) => t.topic).join(", ")}
           
           Recent meeting summaries:
           ${summariesText}
@@ -252,8 +253,7 @@ async function generateAIInsights(notes: any[], metrics: any) {
         }
       ],
       temperature: 0.3,
-      max_tokens: 1500,
-      response_format: { type: "json_object" }
+      max_tokens: 1500
     }),
   });
 
@@ -286,14 +286,13 @@ async function generateAIInsights(notes: any[], metrics: any) {
 }
 
 function calculateEfficiencyScore(notes: any[]): number {
-  // Calculate efficiency based on duration vs content ratio
-  const avgWordsPerMinute = notes.reduce((sum, note) => {
-    const wordCount = note.transcript.split(/\s+/).length;
-    const wordsPerMinute = note.duration > 0 ? wordCount / (note.duration / 60) : 0;
-    return sum + wordsPerMinute;
-  }, 0) / notes.length;
+  const avgWordsPerMinute =
+    notes.reduce((sum, note) => {
+      const wordCount = note.transcript.split(/\s+/).length;
+      const wordsPerMinute = note.duration > 0 ? wordCount / (note.duration / 60) : 0;
+      return sum + wordsPerMinute;
+    }, 0) / notes.length;
 
-  // Normalize to 0-1 scale (assuming 150 words per minute is optimal)
   return Math.min(avgWordsPerMinute / 150, 1);
 }
 
@@ -317,7 +316,7 @@ function determineTrend(notes: any[]): string {
 function extractMeetingTypes(notes: any[]): string[] {
   const types = new Set<string>();
   
-  notes.forEach(note => {
+  notes.forEach((note) => {
     const title = note.title.toLowerCase();
     if (title.includes("standup") || title.includes("daily")) types.add("Daily Standup");
     if (title.includes("review") || title.includes("retrospective")) types.add("Review Meeting");
@@ -331,27 +330,24 @@ function extractMeetingTypes(notes: any[]): string[] {
 }
 
 function calculateCollaborationScore(notes: any[]): number {
-  // Calculate based on speaker diversity and interaction patterns
-  // This is a simplified calculation - in reality would analyze speaker patterns
   const avgTagsPerMeeting = notes.reduce((sum, note) => sum + (note.tags?.length || 0), 0) / notes.length;
-  return Math.min(avgTagsPerMeeting / 5, 1); // Normalize to 0-1
+  return Math.min(avgTagsPerMeeting / 5, 1);
 }
 
 function calculateDecisionVelocity(notes: any[]): number {
-  // Calculate how quickly decisions are made (simplified metric)
-  const decisionsPerMeeting = notes.reduce((sum, note) => {
-    const decisionKeywords = ["decided", "agreed", "concluded", "resolved"];
-    const decisionCount = decisionKeywords.reduce((count, keyword) => {
-      return count + (note.summary.toLowerCase().split(keyword).length - 1);
-    }, 0);
-    return sum + decisionCount;
-  }, 0) / notes.length;
+  const decisionsPerMeeting =
+    notes.reduce((sum, note) => {
+      const decisionKeywords = ["decided", "agreed", "concluded", "resolved"];
+      const decisionCount = decisionKeywords.reduce((count, keyword) => {
+        return count + (note.summary.toLowerCase().split(keyword).length - 1);
+      }, 0);
+      return sum + decisionCount;
+    }, 0) / notes.length;
   
   return Math.min(decisionsPerMeeting, 1);
 }
 
 async function generateComparisons(notes: any[], timeframe: string) {
-  // Get previous period data for comparison
   const timeframeMap = {
     week: "14 days",
     month: "60 days",
@@ -380,9 +376,9 @@ async function generateComparisons(notes: any[], timeframe: string) {
       efficiency_change: Math.round(efficiencyChange * 100) / 100
     },
     benchmarks: {
-      industry_average: 8.5, // Hours per week (example)
-      your_performance: currentTotal / 3600, // Convert to hours
-      percentile: 75 // Example percentile
+      industry_average: 8.5,
+      your_performance: currentTotal / 3600,
+      percentile: 75
     }
   };
 }

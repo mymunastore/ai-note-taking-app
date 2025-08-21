@@ -194,10 +194,11 @@ export function useBackend() {
     notes: {
       ...backend.notes,
       
-      create: async (params: any, retries = 3) => {
+      createNote: async (params: any, retries = 3) => {
         for (let i = 0; i < retries; i++) {
           try {
-            return await backend.notes.create(params);
+            // @ts-expect-error generated client method
+            return await backend.notes.createNote(params);
           } catch (error) {
             if (i === retries - 1) throw error;
             await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
@@ -205,10 +206,11 @@ export function useBackend() {
         }
       },
       
-      list: async (params: any = {}, retries = 3) => {
+      listNotes: async (params: any = {}, retries = 3) => {
         for (let i = 0; i < retries; i++) {
           try {
-            return await backend.notes.list(params);
+            // @ts-expect-error generated client method
+            return await backend.notes.listNotes(params);
           } catch (error) {
             if (i === retries - 1) throw error;
             await new Promise(resolve => setTimeout(resolve, 500 * (i + 1)));
@@ -216,10 +218,11 @@ export function useBackend() {
         }
       },
       
-      get: async (params: any, retries = 3) => {
+      getNote: async (params: any, retries = 3) => {
         for (let i = 0; i < retries; i++) {
           try {
-            return await backend.notes.get(params);
+            // @ts-expect-error generated client method
+            return await backend.notes.getNote(params);
           } catch (error) {
             if (i === retries - 1) throw error;
             await new Promise(resolve => setTimeout(resolve, 500 * (i + 1)));
@@ -227,10 +230,11 @@ export function useBackend() {
         }
       },
       
-      update: async (params: any, retries = 3) => {
+      updateNote: async (params: any, retries = 3) => {
         for (let i = 0; i < retries; i++) {
           try {
-            return await backend.notes.update(params);
+            // @ts-expect-error generated client method
+            return await backend.notes.updateNote(params);
           } catch (error) {
             if (i === retries - 1) throw error;
             await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
@@ -287,10 +291,11 @@ export function useBackend() {
     projects: {
       ...backend.projects,
       
-      create: async (params: any, retries = 3) => {
+      createProject: async (params: any, retries = 3) => {
         for (let i = 0; i < retries; i++) {
           try {
-            return await backend.projects.create(params);
+            // @ts-expect-error generated client method
+            return await backend.projects.createProject(params);
           } catch (error) {
             if (i === retries - 1) throw error;
             await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
@@ -298,10 +303,11 @@ export function useBackend() {
         }
       },
       
-      list: async (retries = 3) => {
+      listProjects: async (retries = 3) => {
         for (let i = 0; i < retries; i++) {
           try {
-            return await backend.projects.list();
+            // @ts-expect-error generated client method
+            return await backend.projects.listProjects();
           } catch (error) {
             if (i === retries - 1) throw error;
             await new Promise(resolve => setTimeout(resolve, 500 * (i + 1)));
@@ -309,10 +315,11 @@ export function useBackend() {
         }
       },
       
-      get: async (params: any, retries = 3) => {
+      getProject: async (params: any, retries = 3) => {
         for (let i = 0; i < retries; i++) {
           try {
-            return await backend.projects.get(params);
+            // @ts-expect-error generated client method
+            return await backend.projects.getProject(params);
           } catch (error) {
             if (i === retries - 1) throw error;
             await new Promise(resolve => setTimeout(resolve, 500 * (i + 1)));
@@ -320,10 +327,11 @@ export function useBackend() {
         }
       },
       
-      update: async (params: any, retries = 3) => {
+      updateProject: async (params: any, retries = 3) => {
         for (let i = 0; i < retries; i++) {
           try {
-            return await backend.projects.update(params);
+            // @ts-expect-error generated client method
+            return await backend.projects.updateProject(params);
           } catch (error) {
             if (i === retries - 1) throw error;
             await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));

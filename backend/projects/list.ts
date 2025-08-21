@@ -3,7 +3,7 @@ import { projectsDB } from "./db";
 import type { ListProjectsResponse } from "./types";
 
 // Lists all projects for the current user or organization.
-export const list = api<void, ListProjectsResponse>(
+export const listProjects = api<void, ListProjectsResponse>(
   { expose: true, method: "GET", path: "/projects" },
   async () => {
     const rows = await projectsDB.queryAll<{

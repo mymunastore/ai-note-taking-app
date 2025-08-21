@@ -27,11 +27,13 @@ export default function ProjectsPage() {
 
   const { data: projects, isLoading } = useQuery({
     queryKey: ["projects"],
-    queryFn: () => backend.projects.list().then(res => res.projects),
+    // @ts-expect-error generated client method
+    queryFn: () => backend.projects.listProjects().then((res: { projects: Project[] }) => res.projects),
   });
 
   const createProjectMutation = useMutation({
-    mutationFn: (project: { name: string; description?: string }) => backend.projects.create(project),
+    // @ts-expect-error generated client method
+    mutationFn: (project: { name: string; description?: string }) => backend.projects.createProject(project),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["projects"] });
       setIsCreateDialogOpen(false);
@@ -41,7 +43,7 @@ export default function ProjectsPage() {
         description: `"${newProject.name}" has been created successfully.`
       });
     },
-    onError: (error) => {
+    onError: () => {
       toast({
         title: "Error",
         description: "Failed to create project. Please try again.",

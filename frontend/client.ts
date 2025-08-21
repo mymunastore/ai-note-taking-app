@@ -262,13 +262,13 @@ export namespace ai {
  * Import the endpoint handlers to derive the types for the client.
  */
 import { getAnalytics as api_notes_analytics_getAnalytics } from "~backend/notes/analytics";
-import { create as api_notes_create_create } from "~backend/notes/create";
+import { createNote as api_notes_create_createNote } from "~backend/notes/create";
 import { deleteNote as api_notes_delete_deleteNote } from "~backend/notes/delete";
 import { exportNotes as api_notes_export_exportNotes } from "~backend/notes/export";
-import { get as api_notes_get_get } from "~backend/notes/get";
-import { list as api_notes_list_list } from "~backend/notes/list";
+import { getNote as api_notes_get_getNote } from "~backend/notes/get";
+import { listNotes as api_notes_list_listNotes } from "~backend/notes/list";
 import { searchNotes as api_notes_search_searchNotes } from "~backend/notes/search";
-import { update as api_notes_update_update } from "~backend/notes/update";
+import { updateNote as api_notes_update_updateNote } from "~backend/notes/update";
 
 export namespace notes {
 
@@ -277,23 +277,23 @@ export namespace notes {
 
         constructor(baseClient: BaseClient) {
             this.baseClient = baseClient
-            this.create = this.create.bind(this)
+            this.createNote = this.createNote.bind(this)
             this.deleteNote = this.deleteNote.bind(this)
             this.exportNotes = this.exportNotes.bind(this)
-            this.get = this.get.bind(this)
             this.getAnalytics = this.getAnalytics.bind(this)
-            this.list = this.list.bind(this)
+            this.getNote = this.getNote.bind(this)
+            this.listNotes = this.listNotes.bind(this)
             this.searchNotes = this.searchNotes.bind(this)
-            this.update = this.update.bind(this)
+            this.updateNote = this.updateNote.bind(this)
         }
 
         /**
          * Creates a new note with transcript and summary.
          */
-        public async create(params: RequestType<typeof api_notes_create_create>): Promise<ResponseType<typeof api_notes_create_create>> {
+        public async createNote(params: RequestType<typeof api_notes_create_createNote>): Promise<ResponseType<typeof api_notes_create_createNote>> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/notes`, {method: "POST", body: JSON.stringify(params)})
-            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_notes_create_create>
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_notes_create_createNote>
         }
 
         /**
@@ -313,15 +313,6 @@ export namespace notes {
         }
 
         /**
-         * Retrieves a specific note by ID.
-         */
-        public async get(params: { id: number }): Promise<ResponseType<typeof api_notes_get_get>> {
-            // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI(`/notes/${encodeURIComponent(params.id)}`, {method: "GET", body: undefined})
-            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_notes_get_get>
-        }
-
-        /**
          * Provides analytics and insights about user's recordings.
          */
         public async getAnalytics(): Promise<ResponseType<typeof api_notes_analytics_getAnalytics>> {
@@ -331,9 +322,18 @@ export namespace notes {
         }
 
         /**
+         * Retrieves a specific note by ID.
+         */
+        public async getNote(params: { id: number }): Promise<ResponseType<typeof api_notes_get_getNote>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/notes/${encodeURIComponent(params.id)}`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_notes_get_getNote>
+        }
+
+        /**
          * Retrieves all notes with optional search and pagination.
          */
-        public async list(params: RequestType<typeof api_notes_list_list>): Promise<ResponseType<typeof api_notes_list_list>> {
+        public async listNotes(params: RequestType<typeof api_notes_list_listNotes>): Promise<ResponseType<typeof api_notes_list_listNotes>> {
             // Convert our params into the objects we need for the request
             const query = makeRecord<string, string | string[]>({
                 limit:     params.limit === undefined ? undefined : String(params.limit),
@@ -345,7 +345,7 @@ export namespace notes {
 
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/notes`, {query, method: "GET", body: undefined})
-            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_notes_list_list>
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_notes_list_listNotes>
         }
 
         /**
@@ -368,7 +368,7 @@ export namespace notes {
         /**
          * Updates an existing note.
          */
-        public async update(params: RequestType<typeof api_notes_update_update>): Promise<ResponseType<typeof api_notes_update_update>> {
+        public async updateNote(params: RequestType<typeof api_notes_update_updateNote>): Promise<ResponseType<typeof api_notes_update_updateNote>> {
             // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
             const body: Record<string, any> = {
                 isPublic:   params.isPublic,
@@ -381,7 +381,7 @@ export namespace notes {
 
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/notes/${encodeURIComponent(params.id)}`, {method: "PUT", body: JSON.stringify(body)})
-            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_notes_update_update>
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_notes_update_updateNote>
         }
     }
 }
@@ -389,11 +389,11 @@ export namespace notes {
 /**
  * Import the endpoint handlers to derive the types for the client.
  */
-import { create as api_projects_create_create } from "~backend/projects/create";
+import { createProject as api_projects_create_createProject } from "~backend/projects/create";
 import { deleteProject as api_projects_delete_deleteProject } from "~backend/projects/delete";
-import { get as api_projects_get_get } from "~backend/projects/get";
-import { list as api_projects_list_list } from "~backend/projects/list";
-import { update as api_projects_update_update } from "~backend/projects/update";
+import { getProject as api_projects_get_getProject } from "~backend/projects/get";
+import { listProjects as api_projects_list_listProjects } from "~backend/projects/list";
+import { updateProject as api_projects_update_updateProject } from "~backend/projects/update";
 
 export namespace projects {
 
@@ -402,20 +402,20 @@ export namespace projects {
 
         constructor(baseClient: BaseClient) {
             this.baseClient = baseClient
-            this.create = this.create.bind(this)
+            this.createProject = this.createProject.bind(this)
             this.deleteProject = this.deleteProject.bind(this)
-            this.get = this.get.bind(this)
-            this.list = this.list.bind(this)
-            this.update = this.update.bind(this)
+            this.getProject = this.getProject.bind(this)
+            this.listProjects = this.listProjects.bind(this)
+            this.updateProject = this.updateProject.bind(this)
         }
 
         /**
          * Creates a new project.
          */
-        public async create(params: RequestType<typeof api_projects_create_create>): Promise<ResponseType<typeof api_projects_create_create>> {
+        public async createProject(params: RequestType<typeof api_projects_create_createProject>): Promise<ResponseType<typeof api_projects_create_createProject>> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/projects`, {method: "POST", body: JSON.stringify(params)})
-            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_projects_create_create>
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_projects_create_createProject>
         }
 
         /**
@@ -428,25 +428,25 @@ export namespace projects {
         /**
          * Retrieves a specific project by ID.
          */
-        public async get(params: { id: number }): Promise<ResponseType<typeof api_projects_get_get>> {
+        public async getProject(params: { id: number }): Promise<ResponseType<typeof api_projects_get_getProject>> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/projects/${encodeURIComponent(params.id)}`, {method: "GET", body: undefined})
-            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_projects_get_get>
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_projects_get_getProject>
         }
 
         /**
          * Lists all projects for the current user or organization.
          */
-        public async list(): Promise<ResponseType<typeof api_projects_list_list>> {
+        public async listProjects(): Promise<ResponseType<typeof api_projects_list_listProjects>> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/projects`, {method: "GET", body: undefined})
-            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_projects_list_list>
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_projects_list_listProjects>
         }
 
         /**
          * Updates a project.
          */
-        public async update(params: RequestType<typeof api_projects_update_update>): Promise<ResponseType<typeof api_projects_update_update>> {
+        public async updateProject(params: RequestType<typeof api_projects_update_updateProject>): Promise<ResponseType<typeof api_projects_update_updateProject>> {
             // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
             const body: Record<string, any> = {
                 description: params.description,
@@ -455,7 +455,7 @@ export namespace projects {
 
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/projects/${encodeURIComponent(params.id)}`, {method: "PUT", body: JSON.stringify(body)})
-            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_projects_update_update>
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_projects_update_updateProject>
         }
     }
 }

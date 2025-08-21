@@ -3,7 +3,7 @@ import { notesDB } from "./db";
 import type { UpdateNoteRequest, Note } from "./types";
 
 // Updates an existing note.
-export const update = api<UpdateNoteRequest, Note>(
+export const updateNote = api<UpdateNoteRequest, Note>(
   { expose: true, method: "PUT", path: "/notes/:id" },
   async (req) => {
     const updates: string[] = [];
