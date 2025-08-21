@@ -1,8 +1,11 @@
 import { api, APIError } from "encore.dev/api";
 import { secret } from "encore.dev/config";
 import { aiDB } from "./db";
+import { openAIChat } from "./utils";
 
-const openAIKey = secret("OpenAIKey");
+const openAIKey = secret("OpenAIKey"); // kept for other potential actions
+const makeApiKey = secret("MakeApiKey");
+const makeTeamId = secret("MakeTeamId");
 
 interface WorkflowTrigger {
   type: "keyword" | "sentiment" | "speaker" | "duration" | "topic" | "action_item";
@@ -134,7 +137,6 @@ export const createWorkflow = api<CreateWorkflowRequest, Workflow>(
           throw APIError.internal("failed to create workflow");
         }
 
-        // Insert triggers
         for (const t of req.triggers) {
           const valueText = typeof t.value === "string" ? t.value : null;
           const valueNumber = typeof t.value === "number" ? t.value : null;
@@ -149,7 +151,6 @@ export const createWorkflow = api<CreateWorkflowRequest, Workflow>(
           );
         }
 
-        // Insert actions
         for (const a of req.actions) {
           await tx.rawExec(
             `INSERT INTO workflow_actions (workflow_id, type, config)
@@ -198,7 +199,6 @@ export const executeWorkflows = api<ExecuteWorkflowRequest, WorkflowExecutionRes
       }> = [];
       const triggeredWorkflowNames: string[] = [];
 
-      // If a specific workflowId is provided in format workflow_<id>, only use that.
       let workflowFilterId: number | null = null;
       if (req.workflowId && req.workflowId.startsWith("workflow_")) {
         const idNum = parseInt(req.workflowId.replace("workflow_", ""), 10);
@@ -223,16 +223,15 @@ export const executeWorkflows = api<ExecuteWorkflowRequest, WorkflowExecutionRes
               success: true,
               result,
             });
-          } catch (err) {
+          } catch (err: any) {
             actionsExecuted.push({
               action_type: action.type,
               success: false,
-              error: err instanceof Error ? err.message : "Unknown error",
+              error: err?.message || "Unknown error",
             });
           }
         }
 
-        // Update execution_count and last_triggered
         await aiDB.rawExec(
           `UPDATE workflows
            SET execution_count = execution_count + 1, last_triggered = NOW(), updated_at = NOW()
@@ -304,52 +303,36 @@ export const generateSmartTemplate = api<SmartTemplateRequest, SmartTemplateResp
         comprehensive: "Include all relevant information with thorough explanations and context.",
       } as const;
 
-      const response = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${openAIKey()}`,
-        },
-        body: JSON.stringify({
-          model: "gpt-4o",
-          messages: [
-            {
-              role: "system",
-              content: `${template.system} ${toneInstructions[req.tone || "professional"]} ${
-                lengthInstructions[req.length || "detailed"]
-              }`,
-            },
-            {
-              role: "user",
-              content: `${template.prompt}
+      const content = await openAIChat(
+        [
+          {
+            role: "system",
+            content: `${template.system} ${toneInstructions[req.tone || "professional"]} ${
+              lengthInstructions[req.length || "detailed"]
+            }`,
+          },
+          {
+            role: "user",
+            content: `${template.prompt}
 
-              Meeting Context:
-              - Type: ${req.context.meeting_type || "General Meeting"}
-              - Participants: ${req.context.participants?.join(", ") || "Not specified"}
+Meeting Context:
+- Type: ${req.context.meeting_type || "General Meeting"}
+- Participants: ${req.context.participants?.join(", ") || "Not specified"}
               
-              Summary: ${req.context.summary}
+Summary: ${req.context.summary}
               
-              Transcript: ${req.context.transcript}
+Transcript: ${req.context.transcript}
               
-              ${req.context.custom_instructions ? `Additional Instructions: ${req.context.custom_instructions}` : ""}
+${req.context.custom_instructions ? `Additional Instructions: ${req.context.custom_instructions}` : ""}
               
-              ${req.type === "email" ? "Format as: Subject: [subject line]\n\n[email body]" : ""}`,
-            },
-          ],
-          temperature: 0.3,
-          max_tokens: 2000,
-        }),
-      });
-
-      if (!response.ok) {
-        throw APIError.internal("Failed to generate template");
-      }
-
-      const result = await response.json();
-      const content = result.choices[0]?.message?.content || "";
+${req.type === "email" ? "Format as: Subject: [subject line]\n\n[email body]" : ""}`,
+          },
+        ],
+        { model: "gpt-4o", temperature: 0.3, max_tokens: 2000 }
+      );
 
       let subject: string | undefined;
-      let body = content;
+      let body = content || "";
 
       if (req.type === "email" && content.includes("Subject:")) {
         const lines = content.split("\n");
@@ -360,7 +343,7 @@ export const generateSmartTemplate = api<SmartTemplateRequest, SmartTemplateResp
         }
       }
 
-      const wordCount = body.split(/\s+/).length;
+      const wordCount = body.split(/\s+/).filter(Boolean).length;
       const estimatedReadingTime = Math.ceil(wordCount / 200);
 
       return {
@@ -394,7 +377,7 @@ async function loadWorkflows(filterId: number | null): Promise<Workflow[]> {
      FROM workflows
      ${filterId ? "WHERE id = $1" : ""}
      ORDER BY created_at DESC`,
-    ...(filterId ? [filterId] as any : [])
+    ...(filterId ? ([filterId] as any) : [])
   );
 
   if (wfRows.length === 0) return [];
@@ -451,7 +434,7 @@ async function loadWorkflows(filterId: number | null): Promise<Workflow[]> {
 async function evaluateWorkflowTriggers(triggers: WorkflowTrigger[], context: any): Promise<boolean> {
   for (const trigger of triggers) {
     const matches = await evaluateSingleTrigger(trigger, context);
-    if (matches) return true; // OR logic - any trigger can activate workflow
+    if (matches) return true;
   }
   return false;
 }
@@ -462,7 +445,6 @@ async function evaluateSingleTrigger(trigger: WorkflowTrigger, context: any): Pr
       return context.transcript?.toLowerCase?.().includes(trigger.condition.toLowerCase());
 
     case "duration":
-      // Expect duration in seconds in context.metadata.duration
       const duration = context.metadata?.duration || 0;
       return evaluateNumericCondition(duration, trigger.condition, Number(trigger.value || 0));
 
@@ -476,9 +458,11 @@ async function evaluateSingleTrigger(trigger: WorkflowTrigger, context: any): Pr
       return context.summary?.toLowerCase?.().includes(trigger.condition.toLowerCase());
 
     case "action_item":
-      return context.summary?.toLowerCase?.().includes("action") ||
+      return (
+        context.summary?.toLowerCase?.().includes("action") ||
         context.summary?.toLowerCase?.().includes("todo") ||
-        context.summary?.toLowerCase?.().includes("follow up");
+        context.summary?.toLowerCase?.().includes("follow up")
+      );
 
     default:
       return false;
@@ -581,36 +565,22 @@ async function executeWebhookAction(config: any, context: any): Promise<any> {
 }
 
 async function executeAIAnalysisAction(config: any, context: any): Promise<any> {
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${openAIKey()}`,
-    },
-    body: JSON.stringify({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content: config.analysis_prompt || "Analyze this meeting content and provide insights.",
-        },
-        {
-          role: "user",
-          content: `Summary: ${context.summary}\n\nTranscript: ${context.transcript}`,
-        },
-      ],
-      temperature: 0.3,
-      max_tokens: 500,
-    }),
-  });
+  const content = await openAIChat(
+    [
+      {
+        role: "system",
+        content: config.analysis_prompt || "Analyze this meeting content and provide insights.",
+      },
+      {
+        role: "user",
+        content: `Summary: ${context.summary}\n\nTranscript: ${context.transcript}`,
+      },
+    ],
+    { model: "gpt-4o-mini", temperature: 0.3, max_tokens: 500 }
+  );
 
-  if (!response.ok) {
-    throw new Error("AI analysis failed");
-  }
-
-  const result = await response.json();
   return {
     action: "ai_analysis_completed",
-    analysis: result.choices[0]?.message?.content || "No analysis generated",
+    analysis: content || "No analysis generated",
   };
 }

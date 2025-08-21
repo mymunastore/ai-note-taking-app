@@ -1,8 +1,8 @@
 import { api, APIError } from "encore.dev/api";
-import { secret } from "encore.dev/config";
 import { SQLDatabase } from "encore.dev/storage/sqldb";
+import { getCached, setCached } from "./cache";
+import { openAIChat, hashString } from "./utils";
 
-const openAIKey = secret("OpenAIKey");
 const notesDB = SQLDatabase.named("notes");
 
 interface SmartInsightsRequest {
@@ -68,12 +68,11 @@ export const generateSmartInsights = api<SmartInsightsRequest, SmartInsightsResp
       const timeframe = req.timeframe || "month";
       const includeComparisons = req.includeComparisons !== false;
 
-      // Get notes data for analysis
       const timeframeMap = {
         week: "7 days",
-        month: "30 days", 
+        month: "30 days",
         quarter: "90 days",
-        year: "365 days"
+        year: "365 days",
       };
 
       const notes = await notesDB.queryAll<{
@@ -98,41 +97,55 @@ export const generateSmartInsights = api<SmartInsightsRequest, SmartInsightsResp
               meeting_frequency: 0,
               average_duration: 0,
               efficiency_score: 0,
-              trend_direction: "stable"
+              trend_direction: "stable",
             },
             communication_patterns: {
               most_active_times: [],
               preferred_meeting_types: [],
-              collaboration_score: 0
+              collaboration_score: 0,
             },
             content_analysis: {
               top_topics: [],
               action_item_completion_rate: 0,
-              decision_velocity: 0
+              decision_velocity: 0,
             },
             recommendations: [],
             predictions: {
               next_week_meetings: 0,
               upcoming_busy_periods: [],
-              potential_bottlenecks: []
-            }
-          }
+              potential_bottlenecks: [],
+            },
+          },
         };
       }
 
+      // Create a cache key that updates as data changes (use count + latest created_at)
+      const latest = notes.reduce((max, n) => {
+        const t = new Date(n.created_at).getTime();
+        return Math.max(max, t);
+      }, 0);
+      const categoriesKey = req.categories?.length ? hashString(req.categories.sort().join(",")) : "all";
+      const cacheKey = `smart:${timeframe}:${includeComparisons ? "1" : "0"}:${notes.length}:${latest}:${categoriesKey}`;
+      const cached = await getCached<SmartInsightsResponse>(cacheKey);
+      if (cached) return cached;
+
       // Analyze patterns
       const insights = await analyzePatterns(notes, timeframe);
-      
+
       let comparisons;
       if (includeComparisons) {
         comparisons = await generateComparisons(notes, timeframe);
       }
 
-      return {
+      const response: SmartInsightsResponse = {
         insights,
-        comparisons
+        comparisons,
       };
 
+      // Cache for 15 minutes
+      await setCached(cacheKey, response, { ttlSeconds: 60 * 15 });
+
+      return response;
     } catch (error) {
       console.error("Smart insights error:", error);
       throw APIError.internal("Failed to generate smart insights");
@@ -141,45 +154,40 @@ export const generateSmartInsights = api<SmartInsightsRequest, SmartInsightsResp
 );
 
 async function analyzePatterns(notes: any[], timeframe: string) {
-  // Calculate basic metrics
   const totalMeetings = notes.length;
   const totalDuration = notes.reduce((sum, note) => sum + note.duration, 0);
   const averageDuration = totalMeetings > 0 ? totalDuration / totalMeetings : 0;
 
-  // Analyze meeting times
   const meetingTimes = notes.map((note) => new Date(note.created_at).getHours());
-  const timeFrequency = meetingTimes.reduce((acc, hour) => {
+  const timeFrequency = meetingTimes.reduce((acc: Record<number, number>, hour: number) => {
     acc[hour] = (acc[hour] || 0) + 1;
     return acc;
-  }, {} as Record<number, number>);
+  }, {});
 
   const mostActiveHours = Object.entries(timeFrequency)
-    .sort(([, a], [, b]) => b - a)
+    .sort(([, a], [, b]) => (b as number) - (a as number))
     .slice(0, 3)
     .map(([hour]) => `${hour}:00`);
 
-  // Analyze topics from tags and summaries
   const allTags = notes.flatMap((note) => note.tags || []);
-  const tagFrequency = allTags.reduce((acc, tag) => {
+  const tagFrequency = allTags.reduce((acc: Record<string, number>, tag: string) => {
     acc[tag] = (acc[tag] || 0) + 1;
     return acc;
-  }, {} as Record<string, number>);
-
+  }, {});
   const topTopics = Object.entries(tagFrequency)
-    .sort(([, a], [, b]) => b - a)
+    .sort(([, a], [, b]) => (b as number) - (a as number))
     .slice(0, 5)
     .map(([topic, frequency]) => ({
       topic,
-      frequency,
-      sentiment_trend: "neutral" as const
+      frequency: frequency as number,
+      sentiment_trend: "neutral" as const,
     }));
 
-  // Generate AI-powered insights
   const aiInsights = await generateAIInsights(notes, {
     totalMeetings,
     averageDuration,
     mostActiveHours,
-    topTopics
+    topTopics,
   });
 
   return {
@@ -187,100 +195,81 @@ async function analyzePatterns(notes: any[], timeframe: string) {
       meeting_frequency: totalMeetings,
       average_duration: Math.round(averageDuration),
       efficiency_score: calculateEfficiencyScore(notes),
-      trend_direction: determineTrend(notes) as "increasing" | "decreasing" | "stable"
+      trend_direction: determineTrend(notes) as "increasing" | "decreasing" | "stable",
     },
     communication_patterns: {
       most_active_times: mostActiveHours,
       preferred_meeting_types: extractMeetingTypes(notes),
-      collaboration_score: calculateCollaborationScore(notes)
+      collaboration_score: calculateCollaborationScore(notes),
     },
     content_analysis: {
       top_topics: topTopics,
       action_item_completion_rate: 0.75,
-      decision_velocity: calculateDecisionVelocity(notes)
+      decision_velocity: calculateDecisionVelocity(notes),
     },
     recommendations: aiInsights.recommendations,
-    predictions: aiInsights.predictions
+    predictions: aiInsights.predictions,
   };
 }
 
 async function generateAIInsights(notes: any[], metrics: any) {
-  const summariesText = notes.slice(0, 10).map((note) => note.summary).join("\n\n");
-  
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${openAIKey()}`,
-    },
-    body: JSON.stringify({
-      model: "gpt-4o",
-      messages: [
-        { 
-          role: "system", 
-          content: "You are an expert productivity and meeting effectiveness analyst. Generate actionable recommendations and predictions based on meeting patterns and content. Only return valid JSON." 
-        },
-        { 
-          role: "user", 
-          content: `Analyze these meeting patterns and generate insights in JSON format:
-          
-          Metrics:
-          - Total meetings: ${metrics.totalMeetings}
-          - Average duration: ${metrics.averageDuration} minutes
-          - Most active times: ${metrics.mostActiveHours.join(", ")}
-          - Top topics: ${metrics.topTopics.map((t: any) => t.topic).join(", ")}
-          
-          Recent meeting summaries:
-          ${summariesText}
-          
-          Generate JSON response with:
-          {
-            "recommendations": [
-              {
-                "category": "productivity|communication|content|workflow",
-                "title": "recommendation title",
-                "description": "detailed description",
-                "impact": "high|medium|low",
-                "effort": "low|medium|high"
-              }
-            ],
-            "predictions": {
-              "next_week_meetings": estimated_number,
-              "upcoming_busy_periods": ["period1", "period2"],
-              "potential_bottlenecks": ["bottleneck1", "bottleneck2"]
-            }
-          }` 
-        }
-      ],
-      temperature: 0.3,
-      max_tokens: 1500
-    }),
-  });
+  const summariesText = notes
+    .slice(0, 10)
+    .map((note) => note.summary)
+    .join("\n\n");
 
-  if (!response.ok) {
-    return {
-      recommendations: [],
-      predictions: {
-        next_week_meetings: Math.round(metrics.totalMeetings / 4),
-        upcoming_busy_periods: [],
-        potential_bottlenecks: []
-      }
-    };
-  }
-
-  const result = await response.json();
-  const insightsText = result.choices[0]?.message?.content;
-  
   try {
-    return JSON.parse(insightsText || "{}");
+    const content = await openAIChat(
+      [
+        {
+          role: "system",
+          content:
+            "You are an expert productivity and meeting effectiveness analyst. Generate actionable recommendations and predictions based on meeting patterns and content. Only return valid JSON.",
+        },
+        {
+          role: "user",
+          content: `Analyze these meeting patterns and generate insights in JSON format:
+
+Metrics:
+- Total meetings: ${metrics.totalMeetings}
+- Average duration: ${metrics.averageDuration} minutes
+- Most active times: ${metrics.mostActiveHours.join(", ")}
+- Top topics: ${metrics.topTopics.map((t: any) => t.topic).join(", ")}
+
+Recent meeting summaries:
+${summariesText}
+
+Generate JSON response with:
+{
+  "recommendations": [
+    {
+      "category": "productivity|communication|content|workflow",
+      "title": "recommendation title",
+      "description": "detailed description",
+      "impact": "high|medium|low",
+      "effort": "low|medium|high"
+    }
+  ],
+  "predictions": {
+    "next_week_meetings": estimated_number,
+    "upcoming_busy_periods": ["period1", "period2"],
+    "potential_bottlenecks": ["bottleneck1", "bottleneck2"]
+  }
+}`,
+        },
+      ],
+      { model: "gpt-4o", temperature: 0.3, max_tokens: 1500 }
+    );
+
+    return JSON.parse(content || "{}");
   } catch {
     return {
       recommendations: [],
       predictions: {
         next_week_meetings: Math.round(metrics.totalMeetings / 4),
         upcoming_busy_periods: [],
-        potential_bottlenecks: []
-      }
+        potential_bottlenecks: [],
+      },
     };
   }
 }
@@ -288,7 +277,7 @@ async function generateAIInsights(notes: any[], metrics: any) {
 function calculateEfficiencyScore(notes: any[]): number {
   const avgWordsPerMinute =
     notes.reduce((sum, note) => {
-      const wordCount = note.transcript.split(/\s+/).length;
+      const wordCount = note.transcript.split(/\s+/).filter(Boolean).length;
       const wordsPerMinute = note.duration > 0 ? wordCount / (note.duration / 60) : 0;
       return sum + wordsPerMinute;
     }, 0) / notes.length;
@@ -298,16 +287,16 @@ function calculateEfficiencyScore(notes: any[]): number {
 
 function determineTrend(notes: any[]): string {
   if (notes.length < 2) return "stable";
-  
+
   const midpoint = Math.floor(notes.length / 2);
   const firstHalf = notes.slice(0, midpoint);
   const secondHalf = notes.slice(midpoint);
-  
+
   const firstHalfAvg = firstHalf.reduce((sum, note) => sum + note.duration, 0) / firstHalf.length;
   const secondHalfAvg = secondHalf.reduce((sum, note) => sum + note.duration, 0) / secondHalf.length;
-  
+
   const change = (secondHalfAvg - firstHalfAvg) / firstHalfAvg;
-  
+
   if (change > 0.1) return "increasing";
   if (change < -0.1) return "decreasing";
   return "stable";
@@ -315,7 +304,7 @@ function determineTrend(notes: any[]): string {
 
 function extractMeetingTypes(notes: any[]): string[] {
   const types = new Set<string>();
-  
+
   notes.forEach((note) => {
     const title = note.title.toLowerCase();
     if (title.includes("standup") || title.includes("daily")) types.add("Daily Standup");
@@ -325,7 +314,7 @@ function extractMeetingTypes(notes: any[]): string[] {
     if (title.includes("interview")) types.add("Interview");
     if (title.includes("demo") || title.includes("presentation")) types.add("Presentation");
   });
-  
+
   return Array.from(types).slice(0, 5);
 }
 
@@ -343,7 +332,7 @@ function calculateDecisionVelocity(notes: any[]): number {
       }, 0);
       return sum + decisionCount;
     }, 0) / notes.length;
-  
+
   return Math.min(decisionsPerMeeting, 1);
 }
 
@@ -351,8 +340,8 @@ async function generateComparisons(notes: any[], timeframe: string) {
   const timeframeMap = {
     week: "14 days",
     month: "60 days",
-    quarter: "180 days", 
-    year: "730 days"
+    quarter: "180 days",
+    year: "730 days",
   };
 
   const previousPeriodNotes = await notesDB.queryAll<{
@@ -373,12 +362,12 @@ async function generateComparisons(notes: any[], timeframe: string) {
     previous_period: {
       meeting_count: previousPeriodNotes.length,
       total_duration: previousTotal,
-      efficiency_change: Math.round(efficiencyChange * 100) / 100
+      efficiency_change: Math.round(efficiencyChange * 100) / 100,
     },
     benchmarks: {
       industry_average: 8.5,
       your_performance: currentTotal / 3600,
-      percentile: 75
-    }
+      percentile: 75,
+    },
   };
 }

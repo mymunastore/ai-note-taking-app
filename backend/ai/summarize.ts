@@ -1,7 +1,6 @@
 import { api, APIError } from "encore.dev/api";
-import { secret } from "encore.dev/config";
-
-const openAIKey = secret("OpenAIKey");
+import { getCached, setCached } from "./cache";
+import { openAIChat, hashString } from "./utils";
 
 interface SummarizeRequest {
   transcript: string;
@@ -30,68 +29,50 @@ export const summarize = api<SummarizeRequest, SummarizeResponse>(
         throw APIError.invalidArgument("Transcript too short. Minimum length is 10 characters");
       }
 
-      const openAIResponse = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${openAIKey()}`,
-        },
-        body: JSON.stringify({
-          model: "gpt-4o-mini",
-          messages: [
-            {
-              role: "system",
-              content: `You are an expert at summarizing meeting transcripts and voice recordings. Create a concise, well-structured summary that includes:
-              
-              1. Key Points: Main topics and important information discussed
-              2. Action Items: Tasks, decisions, and next steps identified
-              3. Participants: Key speakers or roles mentioned (if applicable)
-              4. Outcomes: Decisions made and conclusions reached
-              
-              Format the summary in clear, bullet-point style for easy reading. Focus on actionable insights and important details.`
-            },
-            {
-              role: "user",
-              content: `Please summarize this transcript:\n\n${req.transcript}`
-            }
-          ],
-          temperature: 0.3,
-          max_tokens: 500,
-        }),
-      });
+      const len = req.length ?? "medium";
+      const fmt = req.format ?? "bullets";
+      const cacheKey = `sum:${len}:${fmt}:${hashString(req.transcript.trim())}`;
+      const cached = await getCached<SummarizeResponse>(cacheKey);
+      if (cached) return cached;
 
-      if (!openAIResponse.ok) {
-        const errorText = await openAIResponse.text();
-        console.error("OpenAI summarization error:", errorText);
-        
-        if (openAIResponse.status === 400) {
-          throw APIError.invalidArgument("Invalid transcript content");
-        } else if (openAIResponse.status === 429) {
-          throw APIError.resourceExhausted("Rate limit exceeded. Please try again later");
-        } else {
-          throw APIError.internal(`OpenAI API error: ${openAIResponse.status}`);
-        }
-      }
+      const summary = await openAIChat(
+        [
+          {
+            role: "system",
+            content: `You are an expert at summarizing meeting transcripts and voice recordings. Create a concise, well-structured summary that includes:
+1. Key Points: Main topics and important information discussed
+2. Action Items: Tasks, decisions, and next steps identified
+3. Participants: Key speakers or roles mentioned (if applicable)
+4. Outcomes: Decisions made and conclusions reached
 
-      const openAIResult = await openAIResponse.json();
-      const summary = openAIResult.choices[0]?.message?.content || "";
+Format the summary in clear, ${fmt === "bullets" ? "bullet-point" : "paragraph"} style for easy reading. Focus on actionable insights and important details.`,
+          },
+          {
+            role: "user",
+            content: `Please summarize this transcript (${len} length):\n\n${req.transcript}`,
+          },
+        ],
+        { model: "gpt-4o-mini", temperature: 0.3, max_tokens: 700 }
+      );
 
       if (!summary || summary.trim().length === 0) {
         throw APIError.internal("Failed to generate summary");
       }
 
-      return { summary };
-    } catch (error) {
+      const response = { summary };
+      await setCached(cacheKey, response, { ttlSeconds: 60 * 60 * 24 * 7 }); // 7 days
+      return response;
+    } catch (error: any) {
       console.error("Summarization error:", error);
-      
+
       if (error instanceof APIError) {
         throw error;
       }
-      
-      if (error instanceof TypeError && error.message.includes("fetch")) {
+
+      if (error instanceof TypeError && String(error.message || "").includes("fetch")) {
         throw APIError.unavailable("Unable to connect to summarization service. Please check your internet connection");
       }
-      
+
       throw APIError.internal("Failed to generate summary. Please try again");
     }
   }

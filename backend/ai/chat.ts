@@ -1,7 +1,5 @@
 import { api, APIError } from "encore.dev/api";
-import { secret } from "encore.dev/config";
-
-const openAIKey = secret("OpenAIKey");
+import { openAIChat } from "./utils";
 
 interface ChatRequest {
   message: string;
@@ -18,7 +16,7 @@ export const chat = api<ChatRequest, ChatResponse>(
   { expose: true, method: "POST", path: "/ai/chat" },
   async (req) => {
     try {
-      const messages = [
+      const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
         {
           role: "system",
           content: `You are SCRIBE AI, an intelligent assistant specialized in helping users with their voice recordings, transcripts, and notes. You can:
@@ -31,47 +29,31 @@ export const chat = api<ChatRequest, ChatResponse>(
 
 Be helpful, concise, and professional. If the user provides context from their notes or recordings, use that information to give more relevant responses. Always prioritize accuracy and provide actionable insights.
 
-${req.context ? `\n\nContext from user's notes/recordings:\n${req.context}` : ''}`
-        }
+${req.context ? `\n\nContext from user's notes/recordings:\n${req.context}` : ""}`,
+        },
       ];
 
       if (req.chatHistory) {
         for (const msg of req.chatHistory) {
           messages.push({
             role: msg.role === "USER" ? "user" : "assistant",
-            content: msg.message
+            content: msg.message,
           });
         }
       }
 
       messages.push({
         role: "user",
-        content: req.message
+        content: req.message,
       });
 
-      const openAIResponse = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${openAIKey()}`,
-        },
-        body: JSON.stringify({
-          model: "gpt-4o-mini",
-          messages: messages,
-          temperature: 0.7,
-          max_tokens: 500,
-        }),
+      const chatResponse = await openAIChat(messages, {
+        model: "gpt-4o-mini",
+        temperature: 0.7,
+        max_tokens: 500,
       });
 
-      if (!openAIResponse.ok) {
-        const error = await openAIResponse.text();
-        throw APIError.internal(`OpenAI API error: ${error}`);
-      }
-
-      const openAIResult = await openAIResponse.json();
-      const chatResponse = openAIResult.choices[0]?.message?.content || "I'm sorry, I couldn't generate a response.";
-
-      return { response: chatResponse };
+      return { response: chatResponse || "I'm sorry, I couldn't generate a response." };
     } catch (error) {
       console.error("Chat error:", error);
       throw APIError.internal("Failed to generate chat response");

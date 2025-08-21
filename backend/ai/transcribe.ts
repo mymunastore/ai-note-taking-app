@@ -1,7 +1,5 @@
 import { api, APIError } from "encore.dev/api";
-import { secret } from "encore.dev/config";
-
-const openAIKey = secret("OpenAIKey");
+import { openAIKey, fetchWithRetry } from "./utils";
 
 interface TranscribeRequest {
   audioBase64: string;
@@ -43,8 +41,8 @@ export const transcribe = api<TranscribeRequest, TranscribeResponse>(
       formData.append("file", audioBlob, "audio.webm");
       formData.append("model", "whisper-1");
       formData.append("response_format", "verbose_json");
-      
-      const detectResponse = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+
+      const detectResponse = await fetchWithRetry("https://api.openai.com/v1/audio/transcriptions", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${openAIKey()}`,
@@ -55,7 +53,7 @@ export const transcribe = api<TranscribeRequest, TranscribeResponse>(
       if (!detectResponse.ok) {
         const errorText = await detectResponse.text();
         console.error("OpenAI transcription error:", errorText);
-        
+
         if (detectResponse.status === 400) {
           throw APIError.invalidArgument("Invalid audio format or corrupted file");
         } else if (detectResponse.status === 413) {
@@ -82,7 +80,7 @@ export const transcribe = api<TranscribeRequest, TranscribeResponse>(
           translateFormData.append("file", translateBlob, "audio.webm");
           translateFormData.append("model", "whisper-1");
 
-          const translateResponse = await fetch("https://api.openai.com/v1/audio/translations", {
+          const translateResponse = await fetchWithRetry("https://api.openai.com/v1/audio/translations", {
             method: "POST",
             headers: {
               Authorization: `Bearer ${openAIKey()}`,
@@ -94,41 +92,41 @@ export const transcribe = api<TranscribeRequest, TranscribeResponse>(
             const translateResult = await translateResponse.json();
             if (translateResult.text && translateResult.text.trim()) {
               transcript = translateResult.text;
-              
-              return { 
+
+              return {
                 transcript: transcript,
                 originalLanguage: detectedLanguage,
-                translated: true
+                translated: true,
               };
             }
           }
         } catch (translationError) {
           console.warn("Translation failed, using original transcript:", translationError);
         }
-        
-        return { 
+
+        return {
           transcript: transcript,
           originalLanguage: detectedLanguage,
-          translated: false
+          translated: false,
         };
       } else {
-        return { 
+        return {
           transcript: transcript,
           originalLanguage: "en",
-          translated: false
+          translated: false,
         };
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Transcription error:", error);
-      
+
       if (error instanceof APIError) {
         throw error;
       }
-      
-      if (error instanceof TypeError && error.message.includes("fetch")) {
+
+      if (error instanceof TypeError && String(error.message || "").includes("fetch")) {
         throw APIError.unavailable("Unable to connect to transcription service. Please check your internet connection");
       }
-      
+
       throw APIError.internal("Failed to transcribe audio. Please try again");
     }
   }

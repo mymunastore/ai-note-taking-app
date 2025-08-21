@@ -1,5 +1,5 @@
 import { api, APIError } from "encore.dev/api";
-import { secret } from "encore.dev/config";
+import { openAIKey, fetchWithRetry } from "./utils";
 
 interface DetectLanguageRequest {
   audioBase64: string;
@@ -9,8 +9,6 @@ interface DetectLanguageResponse {
   language: string;
   confidence: number;
 }
-
-const openAIKey = secret("OpenAIKey");
 
 // Detects the language of audio using OpenAI Whisper API.
 export const detectLanguage = api<DetectLanguageRequest, DetectLanguageResponse>(
@@ -26,7 +24,7 @@ export const detectLanguage = api<DetectLanguageRequest, DetectLanguageResponse>
       formData.append("file", audioBlob, "audio.wav");
       formData.append("model", "whisper-1");
 
-      const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+      const response = await fetchWithRetry("https://api.openai.com/v1/audio/transcriptions", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${openAIKey()}`,
@@ -40,14 +38,12 @@ export const detectLanguage = api<DetectLanguageRequest, DetectLanguageResponse>
       }
 
       const result = await response.json();
-      
-      // Whisper automatically detects language, we'll extract it from the response
-      // For now, we'll return a default confidence and the detected language
+
       const language = result.language || "en";
-      
-      return { 
+
+      return {
         language: language,
-        confidence: 0.95 // Whisper is generally very accurate
+        confidence: 0.95, // Whisper is generally very accurate
       };
     } catch (error) {
       console.error("Language detection error:", error);
