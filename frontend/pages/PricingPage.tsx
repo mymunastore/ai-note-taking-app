@@ -1,14 +1,12 @@
 import React from "react";
-import { Check, Sparkles, Zap, Crown, CreditCard } from "lucide-react";
+import { Check, Sparkles, Zap, Crown, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { usePayment } from "../contexts/PaymentContext";
 import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
 
 export default function PricingPage() {
-  const { createOrder, createSubscription } = usePayment();
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -26,11 +24,13 @@ export default function PricingPage() {
         "AI summaries",
         "Local storage",
         "Basic search",
+        "50+ language support",
+        "Auto-translation to English",
       ],
       limitations: [
         "No real-time transcription",
-        "No multi-language support",
         "No team collaboration",
+        "No priority support",
       ],
       buttonText: "Current Plan",
       buttonVariant: "outline" as const,
@@ -53,11 +53,11 @@ export default function PricingPage() {
         "Priority support",
         "Export to multiple formats",
         "Advanced search & filters",
+        "Project management",
       ],
-      buttonText: "Upgrade to Pro",
+      buttonText: "Contact Sales",
       buttonVariant: "default" as const,
       popular: true,
-      paypalPlanId: "P-5ML4271244454362WXNWU5NQ", // Replace with actual PayPal plan ID
     },
     {
       id: "enterprise",
@@ -76,6 +76,7 @@ export default function PricingPage() {
         "Custom AI models",
         "API access",
         "White-label options",
+        "On-premise deployment",
       ],
       buttonText: "Contact Sales",
       buttonVariant: "outline" as const,
@@ -83,65 +84,36 @@ export default function PricingPage() {
     },
   ];
 
-  const handleSubscribe = async (plan: typeof plans[0]) => {
-    if (!user) {
-      toast({
-        title: "Authentication Required",
-        description: "Please sign in to subscribe to a plan.",
-        variant: "destructive",
-      });
-      return;
-    }
+  const handleContactSales = (planName: string) => {
+    const subject = `Interested in SCRIBE AI ${planName} Plan`;
+    const body = `Hi,
 
-    if (plan.id === "free") {
-      toast({
-        title: "Already on Free Plan",
-        description: "You're currently on the free plan.",
-      });
-      return;
-    }
+I'm interested in learning more about the SCRIBE AI ${planName} plan. Could you please provide more information about:
 
-    if (plan.id === "enterprise") {
-      toast({
-        title: "Contact Sales",
-        description: "Please contact our sales team for enterprise pricing.",
-      });
-      return;
-    }
+- Pricing details
+- Available features
+- Implementation timeline
+- Support options
 
-    try {
-      if (plan.paypalPlanId) {
-        const response = await createSubscription(
-          plan.paypalPlanId,
-          user.emailAddresses[0]?.emailAddress || ""
-        );
-        
-        // Redirect to PayPal for approval
-        window.location.href = response.approvalUrl;
-      }
-    } catch (error) {
-      console.error("Subscription error:", error);
-    }
+Thank you!
+
+Best regards,
+${user?.firstName || 'User'}`;
+
+    const mailtoLink = `mailto:sales@scribeai.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.location.href = mailtoLink;
+
+    toast({
+      title: "Email Client Opened",
+      description: "Your default email client should open with a pre-filled message to our sales team.",
+    });
   };
 
-  const handleOneTimePayment = async () => {
-    if (!user) {
-      toast({
-        title: "Authentication Required",
-        description: "Please sign in to make a payment.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      const response = await createOrder("19.00", "USD", "SCRIBE AI Pro - One Month");
-      
-      // Redirect to PayPal for approval
-      window.location.href = response.approvalUrl;
-    } catch (error) {
-      console.error("Payment error:", error);
-    }
+  const handleCurrentPlan = () => {
+    toast({
+      title: "Current Plan",
+      description: "You're currently on the free plan with full access to core features.",
+    });
   };
 
   return (
@@ -210,7 +182,7 @@ export default function PricingPage() {
                   </div>
                   
                   <Button
-                    onClick={() => handleSubscribe(plan)}
+                    onClick={() => plan.id === "free" ? handleCurrentPlan() : handleContactSales(plan.name)}
                     variant={plan.buttonVariant}
                     className={`w-full ${
                       plan.popular 
@@ -219,23 +191,51 @@ export default function PricingPage() {
                     }`}
                     disabled={plan.id === "free"}
                   >
-                    {plan.buttonText}
+                    {plan.id === "free" ? (
+                      plan.buttonText
+                    ) : (
+                      <>
+                        <Mail className="w-4 h-4 mr-2" />
+                        {plan.buttonText}
+                      </>
+                    )}
                   </Button>
-                  
-                  {plan.id === "pro" && (
-                    <Button
-                      onClick={handleOneTimePayment}
-                      variant="outline"
-                      className="w-full"
-                    >
-                      <CreditCard className="w-4 h-4 mr-2" />
-                      One-time Payment
-                    </Button>
-                  )}
                 </CardContent>
               </Card>
             );
           })}
+        </div>
+
+        {/* Contact Information */}
+        <div className="text-center mb-12">
+          <Card className="max-w-2xl mx-auto border-border bg-card">
+            <CardContent className="pt-6">
+              <h3 className="text-lg font-semibold text-foreground mb-4">
+                Ready to upgrade? Let's talk!
+              </h3>
+              <p className="text-muted-foreground mb-6">
+                Contact our sales team to discuss your needs and get a custom quote for Pro or Enterprise plans.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Button 
+                  onClick={() => handleContactSales("Pro")}
+                  className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white"
+                >
+                  <Mail className="w-4 h-4 mr-2" />
+                  Contact Sales
+                </Button>
+                <Button 
+                  variant="outline"
+                  onClick={() => {
+                    const mailtoLink = `mailto:support@scribeai.com?subject=SCRIBE AI Demo Request`;
+                    window.location.href = mailtoLink;
+                  }}
+                >
+                  Request Demo
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* FAQ Section */}
@@ -251,7 +251,7 @@ export default function PricingPage() {
                   Can I change my plan anytime?
                 </h3>
                 <p className="text-muted-foreground">
-                  Yes, you can upgrade or downgrade your plan at any time. Changes will be reflected in your next billing cycle.
+                  Yes, you can upgrade or downgrade your plan at any time. Contact our sales team to discuss plan changes and billing adjustments.
                 </p>
               </CardContent>
             </Card>
@@ -270,10 +270,10 @@ export default function PricingPage() {
             <Card className="border-border bg-card">
               <CardContent className="pt-6">
                 <h3 className="font-semibold text-foreground mb-2">
-                  What payment methods do you accept?
+                  What's included in the free plan?
                 </h3>
                 <p className="text-muted-foreground">
-                  We accept all major credit cards, PayPal, and bank transfers through our secure payment processor.
+                  The free plan includes 5 recordings per month, basic transcription, AI summaries, 50+ language support, and auto-translation to English. Perfect for trying out SCRIBE AI!
                 </p>
               </CardContent>
             </Card>
@@ -281,10 +281,10 @@ export default function PricingPage() {
             <Card className="border-border bg-card">
               <CardContent className="pt-6">
                 <h3 className="font-semibold text-foreground mb-2">
-                  Do you offer refunds?
+                  How do I get started with a paid plan?
                 </h3>
                 <p className="text-muted-foreground">
-                  Yes, we offer a 30-day money-back guarantee for all paid plans. If you're not satisfied, contact our support team for a full refund.
+                  Simply contact our sales team using the "Contact Sales" button above. We'll discuss your needs, provide a custom quote, and help you get set up with the perfect plan for your organization.
                 </p>
               </CardContent>
             </Card>

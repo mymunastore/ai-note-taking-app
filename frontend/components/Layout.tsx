@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Mic, FileText, Settings, Moon, Sun, Leaf, FolderOpen, User, Home, CreditCard, LogOut } from "lucide-react";
+import { Mic, FileText, Settings, Moon, Sun, Leaf, FolderOpen, User, Home, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -21,7 +21,6 @@ export default function Layout({ children }: LayoutProps) {
     { path: "/", icon: Home, label: "Dashboard" },
     { path: "/record", icon: Mic, label: "Record" },
     { path: "/projects", icon: FolderOpen, label: "Projects" },
-    { path: "/pricing", icon: CreditCard, label: "Pricing" },
     { path: "/settings", icon: Settings, label: "Settings" },
   ];
 

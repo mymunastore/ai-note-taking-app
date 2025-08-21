@@ -6,7 +6,6 @@ import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "./contexts/AuthContext";
 import { NotesProvider } from "./contexts/NotesContext";
 import { RecordingProvider } from "./contexts/RecordingContext";
-import { PaymentProvider } from "./contexts/PaymentContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Layout from "./components/Layout";
 import ChatBot from "./components/ChatBot";
@@ -19,8 +18,6 @@ import ProjectsPage from "./pages/ProjectsPage";
 import ProfilePage from "./pages/ProfilePage";
 import SettingsPage from "./pages/SettingsPage";
 import PricingPage from "./pages/PricingPage";
-import PaymentSuccessPage from "./pages/PaymentSuccessPage";
-import PaymentCancelPage from "./pages/PaymentCancelPage";
 import SignInPage from "./pages/SignInPage";
 import SignUpPage from "./pages/SignUpPage";
 import { clerkPublishableKey } from "./config";
@@ -72,8 +69,6 @@ function AppContent() {
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/pricing" element={<PricingPage />} />
-              <Route path="/payment/success" element={<PaymentSuccessPage />} />
-              <Route path="/payment/cancel" element={<PaymentCancelPage />} />
             </Routes>
             <ChatBot />
           </Layout>
@@ -102,18 +97,16 @@ export default function App() {
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
           <AuthProvider>
-            <PaymentProvider>
-              <NotesProvider>
-                <RecordingProvider>
-                  <Router>
-                    <div className="min-h-screen bg-background transition-colors duration-300">
-                      <AppContent />
-                      <Toaster />
-                    </div>
-                  </Router>
-                </RecordingProvider>
-              </NotesProvider>
-            </PaymentProvider>
+            <NotesProvider>
+              <RecordingProvider>
+                <Router>
+                  <div className="min-h-screen bg-background transition-colors duration-300">
+                    <AppContent />
+                    <Toaster />
+                  </div>
+                </Router>
+              </RecordingProvider>
+            </NotesProvider>
           </AuthProvider>
         </ThemeProvider>
       </QueryClientProvider>
