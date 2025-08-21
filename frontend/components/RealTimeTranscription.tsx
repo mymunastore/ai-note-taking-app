@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { Mic, MicOff, Volume2, VolumeX, Settings, Activity, Globe, Languages } from "lucide-react";
+import { Mic, MicOff, Volume2, VolumeX, Settings, Activity, Globe, Languages, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,16 +8,16 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/components/ui/use-toast";
+import { useRecording } from "../contexts/RecordingContext";
 
 interface RealTimeTranscriptionProps {
   onTranscriptUpdate?: (transcript: string) => void;
   onLanguageDetected?: (language: string) => void;
 }
 
-type PermissionStatus = 'prompt' | 'granted' | 'denied';
-
 export default function RealTimeTranscription({ onTranscriptUpdate, onLanguageDetected }: RealTimeTranscriptionProps) {
   const { toast } = useToast();
+  const { permissionStatus, requestMicrophoneAccess } = useRecording();
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [interimTranscript, setInterimTranscript] = useState("");
@@ -31,7 +31,6 @@ export default function RealTimeTranscription({ onTranscriptUpdate, onLanguageDe
     sensitivity: [75],
     targetLanguage: "auto"
   });
-  const [permissionStatus, setPermissionStatus] = useState<PermissionStatus>('prompt');
 
   const recognitionRef = useRef<any>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -39,26 +38,16 @@ export default function RealTimeTranscription({ onTranscriptUpdate, onLanguageDe
   const microphoneRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const animationRef = useRef<number>();
 
-  const checkPermission = useCallback(async () => {
-    if (!navigator.permissions) {
-      setPermissionStatus('prompt');
-      return;
-    }
-    try {
-      const result = await navigator.permissions.query({ name: 'microphone' as PermissionName });
-      setPermissionStatus(result.state as PermissionStatus);
-      result.onchange = () => {
-        setPermissionStatus(result.state as PermissionStatus);
-      };
-    } catch (error) {
-      console.error("Error checking microphone permission:", error);
-      setPermissionStatus('prompt');
-    }
-  }, []);
-
+  // Auto-request microphone access on component mount
   useEffect(() => {
-    checkPermission();
-  }, [checkPermission]);
+    const autoRequestAccess = async () => {
+      if (permissionStatus !== 'granted' && window.isSecureContext) {
+        await requestMicrophoneAccess();
+      }
+    };
+
+    autoRequestAccess();
+  }, [permissionStatus, requestMicrophoneAccess]);
 
   useEffect(() => {
     // Check for browser support
@@ -152,6 +141,14 @@ export default function RealTimeTranscription({ onTranscriptUpdate, onLanguageDe
 
   const startListening = async () => {
     try {
+      // Ensure microphone access
+      if (permissionStatus !== 'granted') {
+        const success = await requestMicrophoneAccess();
+        if (!success) {
+          return;
+        }
+      }
+
       // Request microphone permission and setup audio analysis
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       
@@ -172,9 +169,6 @@ export default function RealTimeTranscription({ onTranscriptUpdate, onLanguageDe
       }
     } catch (error) {
       console.error("Failed to start listening:", error);
-      if (error instanceof Error && error.name === "NotAllowedError") {
-        checkPermission();
-      }
       toast({
         title: "Microphone Error",
         description: "Failed to access microphone. Please check permissions.",
@@ -244,6 +238,17 @@ export default function RealTimeTranscription({ onTranscriptUpdate, onLanguageDe
 
   return (
     <div className="space-y-6">
+      {/* Microphone Status Banner */}
+      {permissionStatus === 'granted' && (
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 p-4 rounded-lg border border-green-200 dark:border-green-800">
+          <div className="flex items-center justify-center gap-2 text-green-700 dark:text-green-300">
+            <CheckCircle className="w-5 h-5" />
+            <span className="font-medium">Microphone Ready</span>
+            <span className="text-sm">• Auto-enabled for real-time transcription</span>
+          </div>
+        </div>
+      )}
+
       {/* Control Panel */}
       <Card className="border-border bg-card">
         <CardHeader>
@@ -294,13 +299,6 @@ export default function RealTimeTranscription({ onTranscriptUpdate, onLanguageDe
               )}
             </div>
           </div>
-
-          {permissionStatus === 'denied' && (
-            <div className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/20 p-4 rounded-lg border border-red-200 dark:border-red-800">
-              <h4 className="font-bold mb-2 flex items-center gap-2"><MicOff className="w-4 h-4" /> Microphone Access Denied</h4>
-              <p className="text-xs">Please enable microphone access in your browser settings to use live transcription.</p>
-            </div>
-          )}
 
           {/* Status Indicators */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">

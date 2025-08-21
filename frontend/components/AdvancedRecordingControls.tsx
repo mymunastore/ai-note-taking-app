@@ -7,8 +7,7 @@ import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-
-type PermissionState = "prompt" | "granted" | "denied" | "unavailable";
+import { useRecording } from "../contexts/RecordingContext";
 
 interface AdvancedRecordingControlsProps {
   settings: {
@@ -21,7 +20,6 @@ interface AdvancedRecordingControlsProps {
     audioFormat: string;
     realTimeProcessing: boolean;
     languageHints: string[];
-    // Optional: allow selecting a specific input device (non-breaking for callers).
     deviceId?: string;
   };
   onSettingsChange: (settings: any) => void;
@@ -31,7 +29,7 @@ export default function AdvancedRecordingControls({
   settings,
   onSettingsChange,
 }: AdvancedRecordingControlsProps) {
-  const [permission, setPermission] = useState<PermissionState>("prompt");
+  const { permissionStatus, requestMicrophoneAccess } = useRecording();
   const [isTestingMic, setIsTestingMic] = useState(false);
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | undefined>(settings.deviceId);
@@ -94,28 +92,10 @@ export default function AdvancedRecordingControls({
     setLevel(0);
   };
 
-  const checkPermission = useCallback(async () => {
-    // If Permissions API unsupported, fall back to prompt state.
-    if (!("permissions" in navigator)) {
-      setPermission("prompt");
-      return;
-    }
-    try {
-      // Some browsers don't support 'microphone' in Permissions API.
-      // @ts-expect-error name typing not universal across TS lib versions
-      const status = await navigator.permissions.query({ name: "microphone" });
-      setPermission(status.state as PermissionState);
-      // Keep permission state updated
-      status.onchange = () => setPermission(status.state as PermissionState);
-    } catch {
-      setPermission("unavailable");
-    }
-  }, []);
-
   const enumerateMics = useCallback(async () => {
     try {
       const list = await navigator.mediaDevices.enumerateDevices();
-      const mics = list.filter((d) => d.kind === "audioinput" && d.deviceId); // Filter for devices with an ID
+      const mics = list.filter((d) => d.kind === "audioinput" && d.deviceId);
       setDevices(mics);
       if (!selectedDeviceId && mics.length > 0) {
         setSelectedDeviceId(mics[0].deviceId);
@@ -127,26 +107,31 @@ export default function AdvancedRecordingControls({
     }
   }, [selectedDeviceId]);
 
+  // Auto-enumerate devices on mount and when permission changes
   useEffect(() => {
-    checkPermission();
-    enumerateMics();
+    if (permissionStatus === 'granted') {
+      enumerateMics();
+    }
 
-    const onDeviceChange = () => enumerateMics();
+    const onDeviceChange = () => {
+      if (permissionStatus === 'granted') {
+        enumerateMics();
+      }
+    };
+    
     navigator.mediaDevices?.addEventListener?.("devicechange", onDeviceChange);
 
     return () => {
       navigator.mediaDevices?.removeEventListener?.("devicechange", onDeviceChange);
       cleanupStream();
     };
-  }, [checkPermission, enumerateMics]);
+  }, [enumerateMics, permissionStatus]);
 
   useEffect(() => {
-    // Persist selected device to settings (optional for parent)
     if (selectedDeviceId !== settings.deviceId) {
       updateSetting("deviceId", selectedDeviceId);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDeviceId]);
+  }, [selectedDeviceId, settings.deviceId]);
 
   const startLevelMeter = (stream: MediaStream) => {
     audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -162,7 +147,6 @@ export default function AdvancedRecordingControls({
       if (!analyserRef.current) return;
       analyserRef.current.getByteFrequencyData(dataArray);
       const avg = dataArray.reduce((a, b) => a + b, 0) / bufferLength;
-      // Normalize 0-100
       const normalized = Math.min(100, Math.max(0, (avg / 255) * 100));
       setLevel(normalized);
       rafRef.current = requestAnimationFrame(tick);
@@ -171,51 +155,45 @@ export default function AdvancedRecordingControls({
     tick();
   };
 
-  const requestMicAccess = async () => {
-    if (!window.isSecureContext) {
-      // Must be https or localhost
-      setPermission("denied");
+  const testMicrophone = async () => {
+    if (isTestingMic) {
+      cleanupStream();
       return;
     }
+
     try {
       setIsTestingMic(true);
       const constraints: MediaStreamConstraints = {
         audio: {
-          // Use selected device if available
           deviceId: selectedDeviceId ? { exact: selectedDeviceId } : undefined,
           noiseSuppression: settings.noiseReduction,
           echoCancellation: settings.echoCancellation,
           autoGainControl: settings.autoGainControl,
-          // sampleRate is not widely supported as a constraint; kept best-effort.
           // @ts-ignore
           sampleRate: settings.sampleRate,
         } as MediaTrackConstraints,
         video: false,
       };
+      
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       streamRef.current = stream;
-      setPermission("granted");
-      await enumerateMics(); // Re-enumerate devices now that we have permission
+      await enumerateMics();
       startLevelMeter(stream);
     } catch (err: any) {
-      // Common: NotAllowedError when user denies
-      if (err && (err.name === "NotAllowedError" || err.name === "SecurityError")) {
-        setPermission("denied");
-      } else {
-        setPermission("unavailable");
-      }
+      console.error("Failed to test microphone:", err);
       cleanupStream();
     }
   };
 
-  const stopMicTest = () => {
-    cleanupStream();
-    // Re-check permission in case user changed it mid-session
-    checkPermission();
+  const handleEnableMicrophone = async () => {
+    const success = await requestMicrophoneAccess();
+    if (success) {
+      await enumerateMics();
+    }
   };
 
   const permissionBadge = (() => {
-    switch (permission) {
+    switch (permissionStatus) {
       case "granted":
         return (
           <Badge className="bg-green-100 text-green-800 dark:bg-green-950/50 dark:text-green-300">
@@ -228,16 +206,10 @@ export default function AdvancedRecordingControls({
             Denied
           </Badge>
         );
-      case "unavailable":
-        return (
-          <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-950/50 dark:text-yellow-300">
-            Unavailable
-          </Badge>
-        );
       default:
         return (
           <Badge variant="secondary" className="bg-slate-100 text-slate-800 dark:bg-slate-900 dark:text-slate-200">
-            Prompt
+            Ready
           </Badge>
         );
     }
@@ -269,9 +241,16 @@ export default function AdvancedRecordingControls({
               <Select
                 value={selectedDeviceId || ""}
                 onValueChange={(value) => setSelectedDeviceId(value)}
+                disabled={permissionStatus !== 'granted'}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder={devices.length === 0 ? "No microphones found" : "Select microphone"} />
+                  <SelectValue placeholder={
+                    permissionStatus !== 'granted' 
+                      ? "Enable microphone access first" 
+                      : devices.length === 0 
+                        ? "No microphones found" 
+                        : "Select microphone"
+                  } />
                 </SelectTrigger>
                 <SelectContent>
                   {devices.map((d) => (
@@ -281,11 +260,10 @@ export default function AdvancedRecordingControls({
                   ))}
                 </SelectContent>
               </Select>
-              {permission === "denied" && (
+              {permissionStatus === "denied" && (
                 <p className="text-xs text-red-600 dark:text-red-400 flex items-center gap-1">
                   <MicOff className="w-3 h-3" />
-                  Permission denied. Click "Enable Microphone" and allow access in the browser prompt. If you previously
-                  blocked it, enable mic permissions in your browser site settings and retry.
+                  Permission denied. Click "Enable Microphone" and allow access in the browser prompt.
                 </p>
               )}
               {!window.isSecureContext && (
@@ -296,18 +274,31 @@ export default function AdvancedRecordingControls({
             </div>
 
             <div className="flex gap-2 justify-end">
-              {!isTestingMic ? (
+              {permissionStatus !== 'granted' ? (
                 <Button
-                  onClick={requestMicAccess}
+                  onClick={handleEnableMicrophone}
                   className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white"
                 >
                   <Mic className="w-4 h-4 mr-2" />
                   Enable Microphone
                 </Button>
               ) : (
-                <Button variant="outline" onClick={stopMicTest}>
-                  <MicOff className="w-4 h-4 mr-2" />
-                  Stop Test
+                <Button
+                  onClick={testMicrophone}
+                  variant={isTestingMic ? "outline" : "default"}
+                  className={!isTestingMic ? "bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white" : ""}
+                >
+                  {isTestingMic ? (
+                    <>
+                      <MicOff className="w-4 h-4 mr-2" />
+                      Stop Test
+                    </>
+                  ) : (
+                    <>
+                      <Mic className="w-4 h-4 mr-2" />
+                      Test Microphone
+                    </>
+                  )}
                 </Button>
               )}
             </div>

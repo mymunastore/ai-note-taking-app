@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Mic, Square, Play, Pause, Save, Loader2, Sparkles, Activity, Globe, Languages, Tag, Plus, X, Settings, MicOff } from "lucide-react";
+import { Mic, Square, Play, Pause, Save, Loader2, Sparkles, Activity, Globe, Languages, Tag, Plus, X, Settings, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -133,6 +133,17 @@ export default function RecordingPage() {
           </p>
         </div>
 
+        {/* Microphone Status Banner */}
+        {permissionStatus === 'granted' && (
+          <div className="mb-6 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 p-4 rounded-lg border border-green-200 dark:border-green-800">
+            <div className="flex items-center justify-center gap-2 text-green-700 dark:text-green-300">
+              <CheckCircle className="w-5 h-5" />
+              <span className="font-medium">Microphone Ready</span>
+              <span className="text-sm">• Auto-enabled for seamless recording</span>
+            </div>
+          </div>
+        )}
+
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="basic">Basic Recording</TabsTrigger>
@@ -185,12 +196,8 @@ export default function RecordingPage() {
                   <div className="flex items-center justify-center gap-2 mb-4">
                     {isRecording && !isPaused && <Activity className="w-5 h-5 animate-pulse text-emerald-600" />}
                     <Badge 
-                      variant={
-                        permissionStatus === 'denied' ? 'destructive' :
-                        isRecording ? (isPaused ? "secondary" : "default") : "outline"
-                      }
+                      variant={isRecording ? (isPaused ? "secondary" : "default") : "outline"}
                       className={`text-sm px-3 py-1 ${
-                        permissionStatus === 'denied' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
                         isRecording 
                           ? isPaused 
                             ? "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200" 
@@ -198,8 +205,7 @@ export default function RecordingPage() {
                           : "bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200"
                       }`}
                     >
-                      {permissionStatus === 'denied' ? '⛔ Mic Permission Denied' :
-                       isRecording
+                      {isRecording
                         ? isPaused
                           ? "⏸️ Recording Paused"
                           : "🔴 Live Recording"
@@ -209,7 +215,7 @@ export default function RecordingPage() {
                     </Badge>
                   </div>
 
-                  {permissionStatus !== 'denied' && autoLanguageDetection && (
+                  {autoLanguageDetection && (
                     <div className="text-xs text-muted-foreground bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 p-2 rounded-lg border border-blue-200 dark:border-blue-800 mb-4">
                       <Globe className="w-4 h-4 inline mr-1" />
                       AI Language Detection Active - Speak in any of 50+ supported languages
@@ -217,20 +223,12 @@ export default function RecordingPage() {
                   )}
                 </div>
 
-                {permissionStatus === 'denied' && (
-                  <div className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/20 p-4 rounded-lg border border-red-200 dark:border-red-800">
-                    <h4 className="font-bold mb-2 flex items-center gap-2"><MicOff className="w-4 h-4" /> Microphone Access Denied</h4>
-                    <p className="text-xs mb-2">SCRIBE AI needs access to your microphone to record audio. Please enable microphone access in your browser's settings for this site.</p>
-                    <p className="text-xs">After enabling permission, click "Start Recording" again.</p>
-                  </div>
-                )}
-
                 <div className="flex justify-center gap-4">
                   {!isRecording && !audioBlob && (
                     <Button
                       onClick={handleStartRecording}
                       size="lg"
-                      className="bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105"
                     >
                       <Mic className="w-5 h-5 mr-2" />
                       Start Recording

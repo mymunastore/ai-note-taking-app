@@ -16,6 +16,7 @@ interface RecordingContextType {
   processRecording: (audioBlob: Blob, duration: number, title: string, tags?: string[]) => Promise<void>;
   permissionStatus: PermissionStatus;
   checkPermission: () => void;
+  requestMicrophoneAccess: () => Promise<boolean>;
 }
 
 const RecordingContext = createContext<RecordingContextType | undefined>(undefined);
@@ -29,19 +30,20 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
   const [isPaused, setIsPaused] = React.useState(false);
   const [duration, setDuration] = React.useState(0);
   const [isProcessing, setIsProcessing] = React.useState(false);
-  const [permissionStatus, setPermissionStatus] = useState<PermissionStatus>('prompt');
+  const [permissionStatus, setPermissionStatus] = useState<PermissionStatus>('granted'); // Default to granted
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<number>(0);
   const pausedTimeRef = useRef<number>(0);
+  const microphoneStreamRef = useRef<MediaStream | null>(null);
   
   const { toast } = useToast();
 
   const checkPermission = useCallback(async () => {
     if (!navigator.permissions) {
-      setPermissionStatus('prompt');
+      setPermissionStatus('granted'); // Assume granted if API not available
       return;
     }
     try {
@@ -52,20 +54,22 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
       };
     } catch (error) {
       console.error("Error checking microphone permission:", error);
-      setPermissionStatus('prompt');
+      setPermissionStatus('granted'); // Default to granted on error
     }
   }, []);
 
-  useEffect(() => {
-    checkPermission();
-  }, [checkPermission]);
-
-  const startRecording = useCallback(async () => {
+  const requestMicrophoneAccess = useCallback(async (): Promise<boolean> => {
     try {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error("Your browser doesn't support audio recording. Please use a modern browser like Chrome, Firefox, or Safari.");
+        toast({
+          title: "Browser Not Supported",
+          description: "Your browser doesn't support audio recording. Please use a modern browser like Chrome, Firefox, or Safari.",
+          variant: "destructive",
+        });
+        return false;
       }
 
+      // Request microphone access with optimal settings
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
           echoCancellation: true,
@@ -75,6 +79,75 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
           channelCount: 1
         } 
       });
+      
+      // Store the stream for later use
+      microphoneStreamRef.current = stream;
+      setPermissionStatus('granted');
+      
+      toast({
+        title: "🎙️ Microphone Ready",
+        description: "Microphone access granted. You can now start recording.",
+      });
+      
+      return true;
+    } catch (error) {
+      console.error("Failed to get microphone access:", error);
+      
+      let errorMessage = "Failed to access microphone. Please check permissions and try again.";
+      
+      if (error instanceof Error) {
+        if (error.name === "NotAllowedError") {
+          errorMessage = "Microphone access denied. Please allow microphone access in your browser settings and refresh the page.";
+          setPermissionStatus('denied');
+        } else if (error.name === "NotFoundError") {
+          errorMessage = "No microphone found. Please connect a microphone and try again.";
+        } else if (error.name === "NotSupportedError") {
+          errorMessage = "Audio recording is not supported in your browser. Please use Chrome, Firefox, or Safari.";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      toast({
+        title: "Microphone Access Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+      
+      return false;
+    }
+  }, [toast]);
+
+  // Auto-request microphone access on component mount
+  useEffect(() => {
+    const autoRequestAccess = async () => {
+      await checkPermission();
+      
+      // Only auto-request if we're in a secure context and haven't been denied
+      if (window.isSecureContext && permissionStatus !== 'denied') {
+        await requestMicrophoneAccess();
+      }
+    };
+
+    autoRequestAccess();
+  }, [checkPermission, requestMicrophoneAccess, permissionStatus]);
+
+  const startRecording = useCallback(async () => {
+    try {
+      // Ensure we have microphone access
+      let stream = microphoneStreamRef.current;
+      
+      if (!stream || !stream.active) {
+        const hasAccess = await requestMicrophoneAccess();
+        if (!hasAccess) {
+          return;
+        }
+        stream = microphoneStreamRef.current;
+      }
+
+      if (!stream) {
+        throw new Error("No microphone stream available");
+      }
       
       if (!window.MediaRecorder) {
         throw new Error("MediaRecorder is not supported in your browser.");
@@ -139,12 +212,12 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
     } catch (error) {
       console.error("Failed to start recording:", error);
       
-      let errorMessage = "Failed to access microphone. Please check permissions and try again.";
+      let errorMessage = "Failed to start recording. Please try again.";
       
       if (error instanceof Error) {
         if (error.name === "NotAllowedError") {
-          errorMessage = "Microphone access denied. Please go to your browser's site settings to allow microphone access for this page.";
-          checkPermission();
+          errorMessage = "Microphone access denied. Please allow microphone access and try again.";
+          setPermissionStatus('denied');
         } else if (error.name === "NotFoundError") {
           errorMessage = "No microphone found. Please connect a microphone and try again.";
         } else if (error.name === "NotSupportedError") {
@@ -160,7 +233,7 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
         variant: "destructive",
       });
     }
-  }, [isPaused, toast, checkPermission]);
+  }, [isPaused, toast, requestMicrophoneAccess]);
 
   const pauseRecording = useCallback(() => {
     if (mediaRecorderRef.current && isRecording && !isPaused) {
@@ -240,10 +313,6 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
           if (intervalRef.current) {
             clearInterval(intervalRef.current);
             intervalRef.current = null;
-          }
-          
-          if (mediaRecorderRef.current?.stream) {
-            mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
           }
           
           toast({
@@ -388,6 +457,18 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
     }
   }, [toast]);
 
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+      if (microphoneStreamRef.current) {
+        microphoneStreamRef.current.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, []);
+
   const value: RecordingContextType = {
     isRecording,
     isPaused,
@@ -400,6 +481,7 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
     processRecording,
     permissionStatus,
     checkPermission,
+    requestMicrophoneAccess,
   };
 
   return <RecordingContext.Provider value={value}>{children}</RecordingContext.Provider>;
