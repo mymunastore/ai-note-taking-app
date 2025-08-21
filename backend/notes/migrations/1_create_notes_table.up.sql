@@ -1,0 +1,13 @@
+CREATE TABLE notes (
+  id BIGSERIAL PRIMARY KEY,
+  title TEXT NOT NULL,
+  transcript TEXT NOT NULL,
+  summary TEXT NOT NULL,
+  duration INTEGER NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_notes_created_at ON notes(created_at DESC);
+CREATE INDEX idx_notes_title ON notes USING gin(to_tsvector('english', title));
+CREATE INDEX idx_notes_transcript ON notes USING gin(to_tsvector('english', transcript));
