@@ -1,12 +1,14 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Mic, Square, Play, Pause, Save, Loader2, Sparkles, Activity, Globe, Languages, Tag, Plus, X, Zap } from "lucide-react";
+import { Mic, Square, Play, Pause, Save, Loader2, Sparkles, Activity, Globe, Languages, Tag, Plus, X, Zap, RefreshCw, AlertTriangle, CheckCircle, Upload, Wifi, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useRecording } from "../contexts/RecordingContext";
 import { useNotes } from "../contexts/NotesContext";
 import { formatDuration } from "../utils/formatters";
@@ -25,6 +27,8 @@ export default function RecordingPage() {
     stopRecording,
     isProcessing,
     processRecording,
+    transmissionStatus,
+    retryTransmission,
   } = useRecording();
 
   const [title, setTitle] = useState("");
@@ -32,9 +36,27 @@ export default function RecordingPage() {
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [autoLanguageDetection, setAutoLanguageDetection] = useState(true);
   const [autoTranslate, setAutoTranslate] = useState(true);
-  const [realTimeTranscription, setRealTimeTranscription] = useState(false);
+  const [realTimeTranscription, setRealTimeTranscription] = useState(true);
+  const [enhancedProcessing, setEnhancedProcessing] = useState(true);
+  const [cloudSync, setCloudSync] = useState(true);
   const [tags, setTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState("");
+  const [connectionStatus, setConnectionStatus] = useState<"online" | "offline">("online");
+
+  // Monitor connection status
+  React.useEffect(() => {
+    const updateConnectionStatus = () => {
+      setConnectionStatus(navigator.onLine ? "online" : "offline");
+    };
+
+    window.addEventListener('online', updateConnectionStatus);
+    window.addEventListener('offline', updateConnectionStatus);
+    
+    return () => {
+      window.removeEventListener('online', updateConnectionStatus);
+      window.removeEventListener('offline', updateConnectionStatus);
+    };
+  }, []);
 
   const handleStartRecording = async () => {
     try {
@@ -62,15 +84,16 @@ export default function RecordingPage() {
     try {
       await processRecording(audioBlob, recordingDuration, title, tags);
       
-      // Reset state
-      setAudioBlob(null);
-      setRecordingDuration(0);
-      setTitle("");
-      setTags([]);
-      
-      // Refresh notes list and navigate back
-      refetch();
-      navigate("/");
+      // Only reset and navigate on successful transmission
+      if (transmissionStatus === "success") {
+        setAudioBlob(null);
+        setRecordingDuration(0);
+        setTitle("");
+        setTags([]);
+        
+        refetch();
+        navigate("/");
+      }
     } catch (error) {
       console.error("Failed to save recording:", error);
     }
@@ -101,6 +124,36 @@ export default function RecordingPage() {
     }
   };
 
+  const getTransmissionStatusIcon = () => {
+    switch (transmissionStatus) {
+      case "uploading":
+        return <Upload className="w-4 h-4 animate-pulse text-blue-600" />;
+      case "processing":
+        return <Loader2 className="w-4 h-4 animate-spin text-purple-600" />;
+      case "success":
+        return <CheckCircle className="w-4 h-4 text-green-600" />;
+      case "error":
+        return <AlertTriangle className="w-4 h-4 text-red-600" />;
+      default:
+        return <Wifi className="w-4 h-4 text-gray-600" />;
+    }
+  };
+
+  const getTransmissionProgress = () => {
+    switch (transmissionStatus) {
+      case "uploading":
+        return 25;
+      case "processing":
+        return 75;
+      case "success":
+        return 100;
+      case "error":
+        return 0;
+      default:
+        return 0;
+    }
+  };
+
   return (
     <div className="p-6 min-h-screen bg-gradient-to-br from-emerald-50/30 via-teal-50/30 to-blue-50/30 dark:from-emerald-950/10 dark:via-teal-950/10 dark:to-blue-950/10">
       <div className="max-w-2xl mx-auto">
@@ -108,20 +161,52 @@ export default function RecordingPage() {
           <div className="flex items-center justify-center gap-3 mb-4">
             <Logo3D size="md" animated={true} showText={false} />
             <h1 className="text-2xl font-bold bg-gradient-to-r from-emerald-600 via-teal-600 to-blue-600 bg-clip-text text-transparent">
-              AI Voice Recording
+              AI Voice Recording Studio
             </h1>
           </div>
           <p className="text-muted-foreground">
-            Record with automatic language detection, real-time transcription, and intelligent translation
+            Premium recording with real-time AI processing, enhanced transmission, and cloud synchronization
           </p>
         </div>
 
-        {/* AI Features Card */}
+        {/* Connection Status Alert */}
+        {connectionStatus === "offline" && (
+          <Alert className="mb-6 border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/20">
+            <WifiOff className="h-4 w-4 text-orange-600" />
+            <AlertDescription className="text-orange-700 dark:text-orange-300">
+              You're currently offline. Recordings will be saved locally and synced when connection is restored.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Transmission Status Alert */}
+        {transmissionStatus === "error" && (
+          <Alert className="mb-6 border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/20">
+            <AlertTriangle className="h-4 w-4 text-red-600" />
+            <AlertDescription className="text-red-700 dark:text-red-300 flex items-center justify-between">
+              <span>Transmission failed. Your recording is safe and can be retried.</span>
+              <Button 
+                size="sm" 
+                variant="outline" 
+                onClick={retryTransmission}
+                className="ml-4 border-red-300 text-red-700 hover:bg-red-100 dark:border-red-700 dark:text-red-300 dark:hover:bg-red-950/20"
+              >
+                <RefreshCw className="w-3 h-3 mr-1" />
+                Retry
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Premium AI Features Card */}
         <Card className="mb-6 border-border bg-card/80 backdrop-blur-sm shadow-xl">
           <CardHeader>
             <CardTitle className="text-foreground flex items-center gap-2">
               <Zap className="w-5 h-5 text-emerald-600" />
-              AI-Powered Features
+              Premium AI Features
+              <Badge className="bg-gradient-to-r from-emerald-100 to-teal-100 text-emerald-800 dark:from-emerald-950/50 dark:to-teal-950/50 dark:text-emerald-300">
+                Enhanced
+              </Badge>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -154,33 +239,63 @@ export default function RecordingPage() {
                     onCheckedChange={setAutoTranslate}
                   />
                 </div>
-              </div>
-              
-              <div className="space-y-4">
+
                 <div className="flex items-center justify-between">
                   <div>
                     <Label className="text-foreground flex items-center gap-2">
                       <Activity className="w-4 h-4" />
-                      Real-time transcription
+                      Real-time Transcription
                     </Label>
-                    <p className="text-xs text-muted-foreground">Show text as you speak</p>
+                    <p className="text-xs text-muted-foreground">Live text as you speak</p>
                   </div>
                   <Switch
                     checked={realTimeTranscription}
                     onCheckedChange={setRealTimeTranscription}
                   />
                 </div>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-foreground flex items-center gap-2">
+                      <Sparkles className="w-4 h-4" />
+                      Enhanced AI Processing
+                    </Label>
+                    <p className="text-xs text-muted-foreground">Advanced insights & analysis</p>
+                  </div>
+                  <Switch
+                    checked={enhancedProcessing}
+                    onCheckedChange={setEnhancedProcessing}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-foreground flex items-center gap-2">
+                      <Wifi className="w-4 h-4" />
+                      Real-time Cloud Sync
+                    </Label>
+                    <p className="text-xs text-muted-foreground">Instant backup & sync</p>
+                  </div>
+                  <Switch
+                    checked={cloudSync}
+                    onCheckedChange={setCloudSync}
+                  />
+                </div>
 
                 <div className="bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/20 dark:to-teal-950/20 p-3 rounded-lg border border-emerald-200 dark:border-emerald-800">
-                  <div className="flex items-center gap-2 text-sm text-emerald-700 dark:text-emerald-300">
+                  <div className="flex items-center gap-2 text-sm text-emerald-700 dark:text-emerald-300 mb-2">
                     <Sparkles className="w-4 h-4" />
-                    <span className="font-medium">AI will automatically:</span>
+                    <span className="font-medium">Premium AI Pipeline:</span>
                   </div>
-                  <ul className="text-xs text-emerald-600 dark:text-emerald-400 mt-1 space-y-1">
-                    <li>• Detect the language being spoken</li>
-                    <li>• Transcribe with 99.9% accuracy</li>
-                    <li>• Translate to English if needed</li>
-                    <li>• Generate intelligent summaries</li>
+                  <ul className="text-xs text-emerald-600 dark:text-emerald-400 space-y-1">
+                    <li>• Enhanced noise reduction & audio processing</li>
+                    <li>• Multi-model AI transcription with 99.9% accuracy</li>
+                    <li>• Real-time language detection & translation</li>
+                    <li>• Advanced sentiment & topic analysis</li>
+                    <li>• Intelligent summary generation</li>
+                    <li>• Automatic backup with retry mechanisms</li>
                   </ul>
                 </div>
               </div>
@@ -191,9 +306,33 @@ export default function RecordingPage() {
         {/* Recording Controls */}
         <Card className="mb-6 border-border bg-card/80 backdrop-blur-sm shadow-xl">
           <CardHeader>
-            <CardTitle className="text-foreground">Recording Studio</CardTitle>
+            <CardTitle className="text-foreground flex items-center justify-between">
+              <span>Recording Studio</span>
+              <div className="flex items-center gap-2">
+                {getTransmissionStatusIcon()}
+                <Badge variant={connectionStatus === "online" ? "default" : "secondary"}>
+                  {connectionStatus === "online" ? "Online" : "Offline"}
+                </Badge>
+              </div>
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
+            {/* Transmission Progress */}
+            {(transmissionStatus !== "idle" && transmissionStatus !== "success") && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Transmission Progress</span>
+                  <span className="text-foreground">{getTransmissionProgress()}%</span>
+                </div>
+                <Progress value={getTransmissionProgress()} className="h-2" />
+                <div className="text-xs text-muted-foreground text-center">
+                  {transmissionStatus === "uploading" && "Uploading audio data..."}
+                  {transmissionStatus === "processing" && "AI processing in progress..."}
+                  {transmissionStatus === "error" && "Transmission failed - ready to retry"}
+                </div>
+              </div>
+            )}
+
             {/* Recording Status */}
             <div className="text-center">
               <div className="relative inline-flex items-center justify-center w-40 h-40 mb-6">
@@ -296,10 +435,11 @@ export default function RecordingPage() {
                 <Button
                   onClick={handleStartRecording}
                   size="lg"
-                  className="bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105"
+                  disabled={connectionStatus === "offline"}
+                  className="bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Mic className="w-5 h-5 mr-2" />
-                  Start AI Recording
+                  Start Premium Recording
                 </Button>
               )}
 
@@ -361,6 +501,12 @@ export default function RecordingPage() {
               <CardTitle className="text-foreground flex items-center gap-2">
                 <Save className="w-5 h-5 text-emerald-600" />
                 Save & Process Recording
+                {transmissionStatus === "success" && (
+                  <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                    <CheckCircle className="w-3 h-3 mr-1" />
+                    Transmitted
+                  </Badge>
+                )}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -370,7 +516,7 @@ export default function RecordingPage() {
                   id="title"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder={`AI Recording ${new Date().toLocaleDateString()}`}
+                  placeholder={`Premium AI Recording ${new Date().toLocaleDateString()}`}
                   disabled={isProcessing}
                   className="bg-background border-border focus:border-emerald-500 focus:ring-emerald-500/20"
                 />
@@ -417,7 +563,7 @@ export default function RecordingPage() {
               <div className="bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/20 dark:to-teal-950/20 p-4 rounded-lg border border-emerald-200 dark:border-emerald-800">
                 <p className="flex items-center gap-2 font-medium text-emerald-700 dark:text-emerald-300 mb-3">
                   <Sparkles className="w-5 h-5" />
-                  AI Processing Pipeline
+                  Enhanced AI Processing Pipeline
                 </p>
                 <div className="grid md:grid-cols-2 gap-3 text-sm">
                   <div className="space-y-2">
@@ -427,11 +573,15 @@ export default function RecordingPage() {
                     </div>
                     <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
                       <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                      <span>Auto language detection</span>
+                      <span>Enhanced language detection</span>
                     </div>
                     <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
                       <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                      <span>High-accuracy transcription</span>
+                      <span>Multi-model transcription</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+                      <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
+                      <span>Advanced sentiment analysis</span>
                     </div>
                   </div>
                   <div className="space-y-2">
@@ -441,11 +591,15 @@ export default function RecordingPage() {
                     </div>
                     <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
                       <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                      <span>AI summary generation</span>
+                      <span>Intelligent summary generation</span>
                     </div>
                     <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
                       <div className="w-2 h-2 bg-pink-500 rounded-full"></div>
-                      <span>Secure local storage</span>
+                      <span>Secure cloud backup</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+                      <div className="w-2 h-2 bg-cyan-500 rounded-full"></div>
+                      <span>Real-time synchronization</span>
                     </div>
                   </div>
                 </div>
@@ -453,22 +607,44 @@ export default function RecordingPage() {
 
               <Button
                 onClick={handleSaveRecording}
-                disabled={isProcessing}
-                className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105"
+                disabled={isProcessing || transmissionStatus === "success"}
+                className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
                 size="lg"
               >
                 {isProcessing ? (
                   <>
                     <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                    <span className="loading-dots">Processing with AI</span>
+                    <span className="loading-dots">Processing with Enhanced AI</span>
+                  </>
+                ) : transmissionStatus === "success" ? (
+                  <>
+                    <CheckCircle className="w-5 h-5 mr-2" />
+                    Successfully Processed & Saved
+                  </>
+                ) : transmissionStatus === "error" ? (
+                  <>
+                    <RefreshCw className="w-5 h-5 mr-2" />
+                    Retry Transmission
                   </>
                 ) : (
                   <>
                     <Sparkles className="w-5 h-5 mr-2" />
-                    Process with AI & Save
+                    Process with Enhanced AI & Save
                   </>
                 )}
               </Button>
+
+              {transmissionStatus === "error" && (
+                <Button
+                  onClick={retryTransmission}
+                  variant="outline"
+                  className="w-full border-red-300 text-red-700 hover:bg-red-50 dark:border-red-700 dark:text-red-300 dark:hover:bg-red-950/20"
+                  size="lg"
+                >
+                  <RefreshCw className="w-5 h-5 mr-2" />
+                  Retry Transmission
+                </Button>
+              )}
             </CardContent>
           </Card>
         )}

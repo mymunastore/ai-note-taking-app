@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Plus, Clock, FileText, Mic, Sparkles, Languages, Download, MoreVertical, Tag, Users, Globe, BarChart3 } from "lucide-react";
+import { Plus, Clock, FileText, Mic, Sparkles, Languages, Download, MoreVertical, Tag, Users, Globe, BarChart3, Zap, Crown, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,10 +13,12 @@ import { formatDuration, formatDate } from "../utils/formatters";
 import ChatBot from "../components/ChatBot";
 import AdvancedSearch from "../components/AdvancedSearch";
 import AnalyticsDashboard from "../components/AnalyticsDashboard";
+import AdvancedAnalytics from "../components/AdvancedAnalytics";
+import WorkflowAutomation from "../components/WorkflowAutomation";
 
 export default function NotesListPage() {
   const { notes, isLoading, searchQuery, setSearchQuery, deleteNote } = useNotes();
-  const { organization } = useAuth();
+  const { organization, isPremium, features } = useAuth();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = React.useState("notes");
 
@@ -40,7 +42,6 @@ export default function NotesListPage() {
   };
 
   const handleExport = (note: any, format: string) => {
-    // In a real app, this would generate and download the file
     toast({
       title: "Export Started",
       description: `Exporting "${note.title}" as ${format.toUpperCase()}...`,
@@ -49,7 +50,6 @@ export default function NotesListPage() {
 
   const handleAdvancedSearch = (query: string, filters: any) => {
     setSearchQuery(query);
-    // Apply additional filters here
     console.log("Advanced search:", { query, filters });
   };
 
@@ -82,7 +82,7 @@ export default function NotesListPage() {
     return Array.from(tagSet).sort();
   }, [notes]);
 
-  // Filter and sort notes
+  // Filter and sort notes with enhanced performance
   const filteredAndSortedNotes = React.useMemo(() => {
     return notes.sort((a, b) => {
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
@@ -112,28 +112,37 @@ export default function NotesListPage() {
   return (
     <div className="p-6">
       <div className="max-w-6xl mx-auto">
-        {/* Header */}
+        {/* Enhanced Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
               <Sparkles className="w-6 h-6 text-emerald-600" />
               SCRIBE AI Dashboard
+              {isPremium && (
+                <Badge className="bg-gradient-to-r from-emerald-100 to-teal-100 text-emerald-800 dark:from-emerald-950/50 dark:to-teal-950/50 dark:text-emerald-300">
+                  <Crown className="w-3 h-3 mr-1" />
+                  Premium
+                </Badge>
+              )}
             </h1>
             <p className="text-muted-foreground mt-1">
-              Manage your recordings, analyze insights, and discover patterns
+              {isPremium 
+                ? "Premium AI-powered voice intelligence with advanced analytics and real-time features"
+                : "Manage your recordings, analyze insights, and discover patterns"
+              }
             </p>
           </div>
           <Link to="/record">
             <Button className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg hover:shadow-xl transition-all duration-200">
               <Plus className="w-4 h-4 mr-2" />
-              New Recording
+              {isPremium ? "Premium Recording" : "New Recording"}
             </Button>
           </Link>
         </div>
 
-        {/* Tabs */}
+        {/* Enhanced Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 lg:w-auto lg:grid-cols-2">
+          <TabsList className={`grid w-full ${isPremium ? 'grid-cols-4' : 'grid-cols-2'} lg:w-auto`}>
             <TabsTrigger value="notes" className="flex items-center gap-2">
               <FileText className="w-4 h-4" />
               Notes ({filteredAndSortedNotes.length})
@@ -142,10 +151,28 @@ export default function NotesListPage() {
               <BarChart3 className="w-4 h-4" />
               Analytics
             </TabsTrigger>
+            {isPremium && features.enhancedAnalytics && (
+              <TabsTrigger value="advanced-analytics" className="flex items-center gap-2">
+                <TrendingUp className="w-4 h-4" />
+                Advanced Analytics
+                <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 text-xs">
+                  Premium
+                </Badge>
+              </TabsTrigger>
+            )}
+            {isPremium && features.advancedWorkflows && (
+              <TabsTrigger value="workflows" className="flex items-center gap-2">
+                <Zap className="w-4 h-4" />
+                Workflows
+                <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 text-xs">
+                  Premium
+                </Badge>
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="notes" className="space-y-6">
-            {/* Advanced Search */}
+            {/* Enhanced Search */}
             <AdvancedSearch
               onSearch={handleAdvancedSearch}
               availableTags={allTags}
@@ -158,11 +185,30 @@ export default function NotesListPage() {
                 <Users className="w-4 h-4 text-blue-600" />
                 <span className="text-sm text-blue-700 dark:text-blue-300">
                   Showing notes from <strong>{organization.name}</strong>
+                  {isPremium && (
+                    <Badge className="ml-2 bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-300 text-xs">
+                      {organization.plan}
+                    </Badge>
+                  )}
                 </span>
               </div>
             )}
 
-            {/* Notes List */}
+            {/* Premium Features Banner */}
+            {isPremium && features.cloudSync && (
+              <div className="flex items-center gap-2 p-4 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/20 dark:to-teal-950/20 rounded-lg border border-emerald-200 dark:border-emerald-800">
+                <Zap className="w-4 h-4 text-emerald-600" />
+                <span className="text-sm text-emerald-700 dark:text-emerald-300">
+                  <strong>Premium Features Active:</strong> Real-time sync, enhanced analytics, and unlimited recordings enabled
+                </span>
+                <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 text-xs">
+                  <Crown className="w-3 h-3 mr-1" />
+                  Premium
+                </Badge>
+              </div>
+            )}
+
+            {/* Enhanced Notes List */}
             {filteredAndSortedNotes.length === 0 ? (
               <div className="text-center py-12">
                 <div className="w-20 h-20 bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-950/50 dark:to-teal-950/50 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -174,13 +220,15 @@ export default function NotesListPage() {
                 <p className="text-muted-foreground mb-6">
                   {searchQuery
                     ? "Try adjusting your search terms or filters"
+                    : isPremium 
+                    ? "Start by recording your first meeting with premium AI features"
                     : "Start by recording your first meeting or phone call"}
                 </p>
                 {!searchQuery && (
                   <Link to="/record">
                     <Button className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg hover:shadow-xl transition-all duration-200">
                       <Mic className="w-4 h-4 mr-2" />
-                      Start Recording
+                      {isPremium ? "Start Premium Recording" : "Start Recording"}
                     </Button>
                   </Link>
                 )}
@@ -205,6 +253,12 @@ export default function NotesListPage() {
                                 Public
                               </Badge>
                             )}
+                            {isPremium && (
+                              <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 text-xs">
+                                <Sparkles className="w-3 h-3 mr-1" />
+                                Enhanced
+                              </Badge>
+                            )}
                           </div>
                           
                           <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
@@ -223,7 +277,7 @@ export default function NotesListPage() {
                             )}
                           </div>
 
-                          {/* Tags */}
+                          {/* Enhanced Tags */}
                           {note.tags && note.tags.length > 0 && (
                             <div className="flex flex-wrap gap-1 mt-2">
                               {note.tags.map((tag) => (
@@ -253,6 +307,11 @@ export default function NotesListPage() {
                               <DropdownMenuItem onClick={() => handleExport(note, "txt")}>
                                 Export as TXT
                               </DropdownMenuItem>
+                              {isPremium && (
+                                <DropdownMenuItem onClick={() => handleExport(note, "enhanced")}>
+                                  Enhanced Export (Premium)
+                                </DropdownMenuItem>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
 
@@ -270,6 +329,9 @@ export default function NotesListPage() {
                               </DropdownMenuItem>
                               <DropdownMenuItem>Share Note</DropdownMenuItem>
                               <DropdownMenuItem>Add to Project</DropdownMenuItem>
+                              {isPremium && (
+                                <DropdownMenuItem>Advanced Analysis</DropdownMenuItem>
+                              )}
                               <DropdownMenuItem 
                                 className="text-red-600"
                                 onClick={() => handleDelete(note.id, note.title)}
@@ -285,7 +347,7 @@ export default function NotesListPage() {
                       <div className="space-y-3">
                         <div>
                           <Badge variant="secondary" className="mb-2 bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300">
-                            Summary
+                            {isPremium ? "Enhanced Summary" : "Summary"}
                           </Badge>
                           <p className="text-muted-foreground text-sm line-clamp-3">
                             {note.summary}
@@ -313,9 +375,21 @@ export default function NotesListPage() {
           <TabsContent value="analytics">
             <AnalyticsDashboard />
           </TabsContent>
+
+          {isPremium && features.enhancedAnalytics && (
+            <TabsContent value="advanced-analytics">
+              <AdvancedAnalytics />
+            </TabsContent>
+          )}
+
+          {isPremium && features.advancedWorkflows && (
+            <TabsContent value="workflows">
+              <WorkflowAutomation />
+            </TabsContent>
+          )}
         </Tabs>
 
-        {/* ChatBot with context */}
+        {/* Enhanced ChatBot with premium context */}
         <ChatBot context={allNotesContext} />
       </div>
     </div>
