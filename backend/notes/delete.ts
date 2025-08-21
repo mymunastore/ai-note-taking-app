@@ -1,4 +1,5 @@
 import { api, APIError } from "encore.dev/api";
+import { getAuthData } from "~encore/auth";
 import { notesDB } from "./db";
 
 interface DeleteNoteParams {
@@ -7,13 +8,12 @@ interface DeleteNoteParams {
 
 // Deletes a note by ID.
 export const deleteNote = api<DeleteNoteParams, void>(
-  { expose: true, method: "DELETE", path: "/notes/:id" },
+  { expose: true, method: "DELETE", path: "/notes/:id", auth: true },
   async (params) => {
-    const result = await notesDB.exec`
-      DELETE FROM notes WHERE id = ${params.id}
+    const auth = getAuthData()!;
+    
+    await notesDB.exec`
+      DELETE FROM notes WHERE id = ${params.id} AND user_id = ${auth.userID}
     `;
-
-    // Note: PostgreSQL doesn't return affected rows count in this context
-    // We'll assume the delete was successful if no error was thrown
   }
 );

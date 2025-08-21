@@ -6,6 +6,10 @@ export interface Note {
   duration: number;
   originalLanguage?: string;
   translated?: boolean;
+  userId: string;
+  organizationId?: string;
+  isPublic: boolean;
+  tags: string[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -17,6 +21,8 @@ export interface CreateNoteRequest {
   duration: number;
   originalLanguage?: string;
   translated?: boolean;
+  isPublic?: boolean;
+  tags?: string[];
 }
 
 export interface UpdateNoteRequest {
@@ -24,12 +30,16 @@ export interface UpdateNoteRequest {
   title?: string;
   transcript?: string;
   summary?: string;
+  tags?: string[];
+  isPublic?: boolean;
 }
 
 export interface ListNotesRequest {
   search?: string;
   limit?: number;
   offset?: number;
+  tags?: string;
+  organizationOnly?: boolean;
 }
 
 export interface ListNotesResponse {

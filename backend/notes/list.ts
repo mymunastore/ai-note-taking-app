@@ -1,5 +1,6 @@
 import { api } from "encore.dev/api";
 import { Query } from "encore.dev/api";
+import { getAuthData } from "~encore/auth";
 import { notesDB } from "./db";
 import type { ListNotesResponse } from "./types";
 
@@ -7,65 +8,74 @@ interface ListNotesParams {
   search?: Query<string>;
   limit?: Query<number>;
   offset?: Query<number>;
+  tags?: Query<string>;
+  organizationOnly?: Query<boolean>;
 }
 
 // Retrieves all notes with optional search and pagination.
 export const list = api<ListNotesParams, ListNotesResponse>(
-  { expose: true, method: "GET", path: "/notes" },
+  { expose: true, method: "GET", path: "/notes", auth: true },
   async (params) => {
+    const auth = getAuthData()!;
     const limit = params.limit || 50;
     const offset = params.offset || 0;
     const search = params.search?.trim();
+    const tags = params.tags?.split(",").filter(Boolean) || [];
+    const organizationOnly = params.organizationOnly || false;
 
-    let whereClause = "";
-    let searchParam: string | undefined;
+    let whereConditions = ["(user_id = $3 OR is_public = true)"];
+    let queryParams: any[] = [limit, offset, auth.userID];
+    let paramIndex = 4;
 
-    if (search) {
-      whereClause = "WHERE to_tsvector('english', title || ' ' || transcript) @@ plainto_tsquery('english', $3)";
-      searchParam = search;
+    // Add organization filter if requested and user has organization
+    if (organizationOnly && auth.organizationId) {
+      whereConditions = ["organization_id = $3"];
+      queryParams = [limit, offset, auth.organizationId];
+      paramIndex = 4;
     }
 
-    const countQuery = search
-      ? `SELECT COUNT(*) as total FROM notes ${whereClause}`
-      : `SELECT COUNT(*) as total FROM notes`;
+    // Add search condition
+    if (search) {
+      whereConditions.push(`to_tsvector('english', title || ' ' || transcript) @@ plainto_tsquery('english', $${paramIndex})`);
+      queryParams.push(search);
+      paramIndex++;
+    }
 
-    const notesQuery = search
-      ? `SELECT id, title, transcript, summary, duration, original_language, translated, created_at, updated_at 
-         FROM notes ${whereClause}
-         ORDER BY created_at DESC 
-         LIMIT $1 OFFSET $2`
-      : `SELECT id, title, transcript, summary, duration, original_language, translated, created_at, updated_at 
-         FROM notes 
-         ORDER BY created_at DESC 
-         LIMIT $1 OFFSET $2`;
+    // Add tags filter
+    if (tags.length > 0) {
+      whereConditions.push(`tags && $${paramIndex}`);
+      queryParams.push(tags);
+      paramIndex++;
+    }
+
+    const whereClause = `WHERE ${whereConditions.join(" AND ")}`;
+
+    const countQuery = `SELECT COUNT(*) as total FROM notes ${whereClause}`;
+    const notesQuery = `
+      SELECT id, title, transcript, summary, duration, original_language, translated, 
+             user_id, organization_id, is_public, tags, created_at, updated_at 
+      FROM notes ${whereClause}
+      ORDER BY created_at DESC 
+      LIMIT $1 OFFSET $2
+    `;
 
     const [countResult, notesResult] = await Promise.all([
-      search
-        ? notesDB.rawQueryRow<{ total: number }>(countQuery, searchParam!)
-        : notesDB.rawQueryRow<{ total: number }>(countQuery),
-      search
-        ? notesDB.rawQueryAll<{
-            id: number;
-            title: string;
-            transcript: string;
-            summary: string;
-            duration: number;
-            original_language: string | null;
-            translated: boolean | null;
-            created_at: Date;
-            updated_at: Date;
-          }>(notesQuery, limit, offset, searchParam!)
-        : notesDB.rawQueryAll<{
-            id: number;
-            title: string;
-            transcript: string;
-            summary: string;
-            duration: number;
-            original_language: string | null;
-            translated: boolean | null;
-            created_at: Date;
-            updated_at: Date;
-          }>(notesQuery, limit, offset),
+      notesDB.rawQueryRow<{ total: number }>(countQuery, ...queryParams.slice(2)),
+      notesDB.rawQueryAll<{
+        id: number;
+        title: string;
+        transcript: string;
+        summary: string;
+        duration: number;
+        original_language: string | null;
+        translated: boolean | null;
+        user_id: string;
+        organization_id: string | null;
+        is_public: boolean;
+        tags: string[];
+        created_at: Date;
+        updated_at: Date;
+      }>(notesQuery, ...queryParams),
     ]);
 
     const total = countResult?.total || 0;
@@ -77,6 +87,10 @@ export const list = api<ListNotesParams, ListNotesResponse>(
       duration: row.duration,
       originalLanguage: row.original_language || undefined,
       translated: row.translated || undefined,
+      userId: row.user_id,
+      organizationId: row.organization_id || undefined,
+      isPublic: row.is_public,
+      tags: row.tags,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     }));

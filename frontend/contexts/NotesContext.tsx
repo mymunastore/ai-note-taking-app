@@ -1,6 +1,6 @@
 import React, { createContext, useContext, ReactNode } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import backend from "~backend/client";
+import { useBackend } from "./AuthContext";
 import type { Note, CreateNoteRequest, UpdateNoteRequest } from "~backend/notes/types";
 
 interface NotesContextType {
@@ -9,6 +9,10 @@ interface NotesContextType {
   error: Error | null;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
+  selectedTags: string[];
+  setSelectedTags: (tags: string[]) => void;
+  organizationOnly: boolean;
+  setOrganizationOnly: (value: boolean) => void;
   createNote: (note: CreateNoteRequest) => Promise<Note>;
   updateNote: (note: UpdateNoteRequest) => Promise<Note>;
   deleteNote: (id: number) => Promise<void>;
@@ -22,7 +26,10 @@ interface NotesProviderProps {
 }
 
 export function NotesProvider({ children }: NotesProviderProps) {
+  const backend = useBackend();
   const [searchQuery, setSearchQuery] = React.useState("");
+  const [selectedTags, setSelectedTags] = React.useState<string[]>([]);
+  const [organizationOnly, setOrganizationOnly] = React.useState(false);
   const queryClient = useQueryClient();
 
   const {
@@ -31,9 +38,12 @@ export function NotesProvider({ children }: NotesProviderProps) {
     error,
     refetch,
   } = useQuery({
-    queryKey: ["notes", searchQuery],
+    queryKey: ["notes", searchQuery, selectedTags, organizationOnly],
     queryFn: async () => {
-      const params = searchQuery ? { search: searchQuery } : {};
+      const params: any = {};
+      if (searchQuery) params.search = searchQuery;
+      if (selectedTags.length > 0) params.tags = selectedTags.join(",");
+      if (organizationOnly) params.organizationOnly = true;
       return backend.notes.list(params);
     },
   });
@@ -65,6 +75,10 @@ export function NotesProvider({ children }: NotesProviderProps) {
     error: error as Error | null,
     searchQuery,
     setSearchQuery,
+    selectedTags,
+    setSelectedTags,
+    organizationOnly,
+    setOrganizationOnly,
     createNote: createNoteMutation.mutateAsync,
     updateNote: updateNoteMutation.mutateAsync,
     deleteNote: deleteNoteMutation.mutateAsync,

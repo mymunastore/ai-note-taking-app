@@ -1,12 +1,13 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Mic, Square, Play, Pause, Save, Loader2, Sparkles, Activity, Globe, Languages } from "lucide-react";
+import { Mic, Square, Play, Pause, Save, Loader2, Sparkles, Activity, Globe, Languages, Tag, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import { useRecording } from "../contexts/RecordingContext";
 import { useNotes } from "../contexts/NotesContext";
 import { formatDuration } from "../utils/formatters";
@@ -32,6 +33,8 @@ export default function RecordingPage() {
   const [selectedLanguage, setSelectedLanguage] = useState("auto");
   const [realTimeTranscription, setRealTimeTranscription] = useState(false);
   const [autoTranslate, setAutoTranslate] = useState(true);
+  const [tags, setTags] = useState<string[]>([]);
+  const [newTag, setNewTag] = useState("");
 
   const languages = [
     { code: "auto", name: "Auto-detect" },
@@ -73,12 +76,13 @@ export default function RecordingPage() {
   const handleSaveRecording = async () => {
     if (!audioBlob) return;
 
-    await processRecording(audioBlob, recordingDuration, title);
+    await processRecording(audioBlob, recordingDuration, title, tags);
     
     // Reset state
     setAudioBlob(null);
     setRecordingDuration(0);
     setTitle("");
+    setTags([]);
     
     // Refresh notes list and navigate back
     refetch();
@@ -89,6 +93,25 @@ export default function RecordingPage() {
     setAudioBlob(null);
     setRecordingDuration(0);
     setTitle("");
+    setTags([]);
+  };
+
+  const addTag = () => {
+    if (newTag.trim() && !tags.includes(newTag.trim())) {
+      setTags([...tags, newTag.trim()]);
+      setNewTag("");
+    }
+  };
+
+  const removeTag = (tagToRemove: string) => {
+    setTags(tags.filter(tag => tag !== tagToRemove));
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      addTag();
+    }
   };
 
   return (
@@ -286,6 +309,44 @@ export default function RecordingPage() {
                   disabled={isProcessing}
                   className="bg-background border-border focus:border-emerald-500 focus:ring-emerald-500/20"
                 />
+              </div>
+
+              {/* Tags */}
+              <div>
+                <Label className="text-foreground">Tags</Label>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {tags.map((tag) => (
+                    <Badge key={tag} variant="secondary" className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300">
+                      <Tag className="w-3 h-3 mr-1" />
+                      {tag}
+                      <button
+                        onClick={() => removeTag(tag)}
+                        className="ml-1 hover:text-red-600"
+                        disabled={isProcessing}
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    value={newTag}
+                    onChange={(e) => setNewTag(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    placeholder="Add a tag..."
+                    disabled={isProcessing}
+                    className="bg-background border-border"
+                  />
+                  <Button
+                    onClick={addTag}
+                    variant="outline"
+                    size="sm"
+                    disabled={!newTag.trim() || isProcessing}
+                  >
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
               
               <div className="text-sm text-muted-foreground bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/20 dark:to-teal-950/20 p-4 rounded-lg border border-emerald-200 dark:border-emerald-800">

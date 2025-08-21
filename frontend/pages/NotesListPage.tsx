@@ -1,19 +1,23 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Search, Plus, Clock, FileText, Trash2, Mic, Sparkles, Languages, Filter, Download, MoreVertical } from "lucide-react";
+import { Search, Plus, Clock, FileText, Trash2, Mic, Sparkles, Languages, Filter, Download, MoreVertical, Tag, Users, Globe } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/components/ui/use-toast";
 import { useNotes } from "../contexts/NotesContext";
+import { useAuth } from "../contexts/AuthContext";
 import { formatDuration, formatDate } from "../utils/formatters";
 import ChatBot from "../components/ChatBot";
 
 export default function NotesListPage() {
-  const { notes, isLoading, searchQuery, setSearchQuery, deleteNote } = useNotes();
+  const { notes, isLoading, searchQuery, setSearchQuery, selectedTags, setSelectedTags, organizationOnly, setOrganizationOnly, deleteNote } = useNotes();
+  const { organization } = useAuth();
   const { toast } = useToast();
   const [sortBy, setSortBy] = React.useState("newest");
   const [filterBy, setFilterBy] = React.useState("all");
@@ -63,6 +67,23 @@ export default function NotesListPage() {
     return languages[code] || code.toUpperCase();
   };
 
+  const toggleTag = (tag: string) => {
+    if (selectedTags.includes(tag)) {
+      setSelectedTags(selectedTags.filter(t => t !== tag));
+    } else {
+      setSelectedTags([...selectedTags, tag]);
+    }
+  };
+
+  // Get all unique tags from notes
+  const allTags = React.useMemo(() => {
+    const tagSet = new Set<string>();
+    notes.forEach(note => {
+      note.tags.forEach(tag => tagSet.add(tag));
+    });
+    return Array.from(tagSet).sort();
+  }, [notes]);
+
   // Filter and sort notes
   const filteredAndSortedNotes = React.useMemo(() => {
     let filtered = notes;
@@ -72,6 +93,10 @@ export default function NotesListPage() {
       filtered = notes.filter(note => note.translated);
     } else if (filterBy === "english") {
       filtered = notes.filter(note => !note.translated);
+    } else if (filterBy === "public") {
+      filtered = notes.filter(note => note.isPublic);
+    } else if (filterBy === "private") {
+      filtered = notes.filter(note => !note.isPublic);
     }
 
     // Apply sorting
@@ -123,7 +148,7 @@ export default function NotesListPage() {
             </h1>
             <p className="text-muted-foreground mt-1">
               {filteredAndSortedNotes.length} {filteredAndSortedNotes.length === 1 ? "recording" : "recordings"}
-              {filterBy !== "all" && ` (filtered)`}
+              {(filterBy !== "all" || selectedTags.length > 0 || organizationOnly) && ` (filtered)`}
             </p>
           </div>
           <Link to="/record">
@@ -135,42 +160,85 @@ export default function NotesListPage() {
         </div>
 
         {/* Search and Filters */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-6">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-            <Input
-              placeholder="Search notes and transcripts..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 bg-background border-border focus:border-emerald-500 focus:ring-emerald-500/20"
-            />
-          </div>
-          
-          <div className="flex gap-2">
-            <Select value={filterBy} onValueChange={setFilterBy}>
-              <SelectTrigger className="w-40 bg-background border-border">
-                <Filter className="w-4 h-4 mr-2" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Notes</SelectItem>
-                <SelectItem value="translated">Translated</SelectItem>
-                <SelectItem value="english">English Only</SelectItem>
-              </SelectContent>
-            </Select>
+        <div className="space-y-4 mb-6">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+              <Input
+                placeholder="Search notes and transcripts..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 bg-background border-border focus:border-emerald-500 focus:ring-emerald-500/20"
+              />
+            </div>
+            
+            <div className="flex gap-2">
+              <Select value={filterBy} onValueChange={setFilterBy}>
+                <SelectTrigger className="w-40 bg-background border-border">
+                  <Filter className="w-4 h-4 mr-2" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Notes</SelectItem>
+                  <SelectItem value="translated">Translated</SelectItem>
+                  <SelectItem value="english">English Only</SelectItem>
+                  <SelectItem value="public">Public</SelectItem>
+                  <SelectItem value="private">Private</SelectItem>
+                </SelectContent>
+              </Select>
 
-            <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-32 bg-background border-border">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="newest">Newest</SelectItem>
-                <SelectItem value="oldest">Oldest</SelectItem>
-                <SelectItem value="duration">Duration</SelectItem>
-                <SelectItem value="title">Title</SelectItem>
-              </SelectContent>
-            </Select>
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger className="w-32 bg-background border-border">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="newest">Newest</SelectItem>
+                  <SelectItem value="oldest">Oldest</SelectItem>
+                  <SelectItem value="duration">Duration</SelectItem>
+                  <SelectItem value="title">Title</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
+
+          {/* Organization Filter */}
+          {organization && (
+            <div className="flex items-center gap-2">
+              <Switch
+                id="organization-only"
+                checked={organizationOnly}
+                onCheckedChange={setOrganizationOnly}
+              />
+              <Label htmlFor="organization-only" className="text-sm text-foreground flex items-center gap-2">
+                <Users className="w-4 h-4" />
+                Show only {organization.name} notes
+              </Label>
+            </div>
+          )}
+
+          {/* Tags Filter */}
+          {allTags.length > 0 && (
+            <div>
+              <Label className="text-sm text-foreground mb-2 block">Filter by tags:</Label>
+              <div className="flex flex-wrap gap-2">
+                {allTags.map((tag) => (
+                  <Badge
+                    key={tag}
+                    variant={selectedTags.includes(tag) ? "default" : "outline"}
+                    className={`cursor-pointer transition-colors ${
+                      selectedTags.includes(tag)
+                        ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                        : "hover:bg-emerald-50 dark:hover:bg-emerald-950/20"
+                    }`}
+                    onClick={() => toggleTag(tag)}
+                  >
+                    <Tag className="w-3 h-3 mr-1" />
+                    {tag}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Notes List */}
@@ -180,14 +248,14 @@ export default function NotesListPage() {
               <FileText className="w-10 h-10 text-emerald-600" />
             </div>
             <h3 className="text-lg font-medium text-foreground mb-2">
-              {searchQuery || filterBy !== "all" ? "No notes found" : "No recordings yet"}
+              {searchQuery || filterBy !== "all" || selectedTags.length > 0 || organizationOnly ? "No notes found" : "No recordings yet"}
             </h3>
             <p className="text-muted-foreground mb-6">
-              {searchQuery || filterBy !== "all"
+              {searchQuery || filterBy !== "all" || selectedTags.length > 0 || organizationOnly
                 ? "Try adjusting your search terms or filters"
                 : "Start by recording your first meeting or phone call"}
             </p>
-            {!searchQuery && filterBy === "all" && (
+            {!searchQuery && filterBy === "all" && selectedTags.length === 0 && !organizationOnly && (
               <Link to="/record">
                 <Button className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg hover:shadow-xl transition-all duration-200">
                   <Mic className="w-4 h-4 mr-2" />
@@ -203,12 +271,21 @@ export default function NotesListPage() {
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <Link
-                        to={`/note/${note.id}`}
-                        className="text-lg font-semibold text-foreground hover:text-emerald-600 transition-colors"
-                      >
-                        {note.title}
-                      </Link>
+                      <div className="flex items-center gap-2 mb-2">
+                        <Link
+                          to={`/note/${note.id}`}
+                          className="text-lg font-semibold text-foreground hover:text-emerald-600 transition-colors"
+                        >
+                          {note.title}
+                        </Link>
+                        {note.isPublic && (
+                          <Badge variant="outline" className="text-xs">
+                            <Globe className="w-3 h-3 mr-1" />
+                            Public
+                          </Badge>
+                        )}
+                      </div>
+                      
                       <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
                         <div className="flex items-center">
                           <Clock className="w-4 h-4 mr-1" />
@@ -224,6 +301,18 @@ export default function NotesListPage() {
                           </div>
                         )}
                       </div>
+
+                      {/* Tags */}
+                      {note.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {note.tags.map((tag) => (
+                            <Badge key={tag} variant="secondary" className="text-xs bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300">
+                              <Tag className="w-3 h-3 mr-1" />
+                              {tag}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
                     </div>
                     
                     <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">

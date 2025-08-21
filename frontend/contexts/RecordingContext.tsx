@@ -1,6 +1,6 @@
 import React, { createContext, useContext, ReactNode, useRef, useCallback } from "react";
 import { useToast } from "@/components/ui/use-toast";
-import backend from "~backend/client";
+import { useBackend } from "./AuthContext";
 
 interface RecordingContextType {
   isRecording: boolean;
@@ -11,7 +11,7 @@ interface RecordingContextType {
   resumeRecording: () => void;
   stopRecording: () => Promise<{ audioBlob: Blob; duration: number } | null>;
   isProcessing: boolean;
-  processRecording: (audioBlob: Blob, duration: number, title: string) => Promise<void>;
+  processRecording: (audioBlob: Blob, duration: number, title: string, tags?: string[]) => Promise<void>;
 }
 
 const RecordingContext = createContext<RecordingContextType | undefined>(undefined);
@@ -21,6 +21,7 @@ interface RecordingProviderProps {
 }
 
 export function RecordingProvider({ children }: RecordingProviderProps) {
+  const backend = useBackend();
   const [isRecording, setIsRecording] = React.useState(false);
   const [isPaused, setIsPaused] = React.useState(false);
   const [duration, setDuration] = React.useState(0);
@@ -120,7 +121,7 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
     });
   }, [isRecording, duration]);
 
-  const processRecording = useCallback(async (audioBlob: Blob, recordingDuration: number, title: string) => {
+  const processRecording = useCallback(async (audioBlob: Blob, recordingDuration: number, title: string, tags?: string[]) => {
     setIsProcessing(true);
     
     try {
@@ -164,6 +165,7 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
         duration: recordingDuration,
         originalLanguage: transcribeResponse.originalLanguage,
         translated: transcribeResponse.translated,
+        tags: tags || [],
       });
       
       toast({
@@ -181,7 +183,7 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
     } finally {
       setIsProcessing(false);
     }
-  }, [toast]);
+  }, [backend, toast]);
 
   const value: RecordingContextType = {
     isRecording,

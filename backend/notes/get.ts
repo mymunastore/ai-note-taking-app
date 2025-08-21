@@ -1,4 +1,5 @@
 import { api, APIError } from "encore.dev/api";
+import { getAuthData } from "~encore/auth";
 import { notesDB } from "./db";
 import type { Note } from "./types";
 
@@ -8,8 +9,10 @@ interface GetNoteParams {
 
 // Retrieves a specific note by ID.
 export const get = api<GetNoteParams, Note>(
-  { expose: true, method: "GET", path: "/notes/:id" },
+  { expose: true, method: "GET", path: "/notes/:id", auth: true },
   async (params) => {
+    const auth = getAuthData()!;
+    
     const row = await notesDB.queryRow<{
       id: number;
       title: string;
@@ -18,12 +21,17 @@ export const get = api<GetNoteParams, Note>(
       duration: number;
       original_language: string | null;
       translated: boolean | null;
+      user_id: string;
+      organization_id: string | null;
+      is_public: boolean;
+      tags: string[];
       created_at: Date;
       updated_at: Date;
     }>`
-      SELECT id, title, transcript, summary, duration, original_language, translated, created_at, updated_at
+      SELECT id, title, transcript, summary, duration, original_language, translated, 
+             user_id, organization_id, is_public, tags, created_at, updated_at
       FROM notes
-      WHERE id = ${params.id}
+      WHERE id = ${params.id} AND (user_id = ${auth.userID} OR is_public = true)
     `;
 
     if (!row) {
@@ -38,6 +46,10 @@ export const get = api<GetNoteParams, Note>(
       duration: row.duration,
       originalLanguage: row.original_language || undefined,
       translated: row.translated || undefined,
+      userId: row.user_id,
+      organizationId: row.organization_id || undefined,
+      isPublic: row.is_public,
+      tags: row.tags,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };

@@ -1,11 +1,13 @@
 import { api, APIError } from "encore.dev/api";
+import { getAuthData } from "~encore/auth";
 import { notesDB } from "./db";
 import type { UpdateNoteRequest, Note } from "./types";
 
 // Updates an existing note.
 export const update = api<UpdateNoteRequest, Note>(
-  { expose: true, method: "PUT", path: "/notes/:id" },
+  { expose: true, method: "PUT", path: "/notes/:id", auth: true },
   async (req) => {
+    const auth = getAuthData()!;
     const updates: string[] = [];
     const params: any[] = [];
     let paramIndex = 1;
@@ -25,18 +27,30 @@ export const update = api<UpdateNoteRequest, Note>(
       params.push(req.summary);
     }
 
+    if (req.tags !== undefined) {
+      updates.push(`tags = $${paramIndex++}`);
+      params.push(req.tags);
+    }
+
+    if (req.isPublic !== undefined) {
+      updates.push(`is_public = $${paramIndex++}`);
+      params.push(req.isPublic);
+    }
+
     if (updates.length === 0) {
       throw APIError.invalidArgument("no fields to update");
     }
 
     updates.push(`updated_at = NOW()`);
     params.push(req.id);
+    params.push(auth.userID);
 
     const query = `
       UPDATE notes 
       SET ${updates.join(", ")}
-      WHERE id = $${paramIndex}
-      RETURNING id, title, transcript, summary, duration, created_at, updated_at
+      WHERE id = $${paramIndex++} AND user_id = $${paramIndex}
+      RETURNING id, title, transcript, summary, duration, original_language, translated,
+                user_id, organization_id, is_public, tags, created_at, updated_at
     `;
 
     const row = await notesDB.rawQueryRow<{
@@ -45,12 +59,18 @@ export const update = api<UpdateNoteRequest, Note>(
       transcript: string;
       summary: string;
       duration: number;
+      original_language: string | null;
+      translated: boolean | null;
+      user_id: string;
+      organization_id: string | null;
+      is_public: boolean;
+      tags: string[];
       created_at: Date;
       updated_at: Date;
     }>(query, ...params);
 
     if (!row) {
-      throw APIError.notFound("note not found");
+      throw APIError.notFound("note not found or access denied");
     }
 
     return {
@@ -59,6 +79,12 @@ export const update = api<UpdateNoteRequest, Note>(
       transcript: row.transcript,
       summary: row.summary,
       duration: row.duration,
+      originalLanguage: row.original_language || undefined,
+      translated: row.translated || undefined,
+      userId: row.user_id,
+      organizationId: row.organization_id || undefined,
+      isPublic: row.is_public,
+      tags: row.tags,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
