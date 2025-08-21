@@ -1,6 +1,6 @@
 import React, { createContext, useContext, ReactNode } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useBackend } from "./AuthContext";
+import backend from "~backend/client";
 import type { Note, CreateNoteRequest, UpdateNoteRequest } from "~backend/notes/types";
 
 interface NotesContextType {
@@ -24,7 +24,6 @@ interface NotesProviderProps {
 }
 
 export function NotesProvider({ children }: NotesProviderProps) {
-  const backend = useBackend();
   const [searchQuery, setSearchQuery] = React.useState("");
   const [selectedTags, setSelectedTags] = React.useState<string[]>([]);
   const queryClient = useQueryClient();

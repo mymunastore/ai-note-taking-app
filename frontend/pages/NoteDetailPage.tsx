@@ -1,22 +1,21 @@
 import React from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Clock, Calendar, Edit3, Trash2, Copy, Sparkles, Globe, Languages } from "lucide-react";
+import { ArrowLeft, Clock, Calendar, Edit3, Trash2, Copy, Sparkles, Languages } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
-import { useBackend } from "../contexts/AuthContext";
 import { useNotes } from "../contexts/NotesContext";
 import { formatDuration, formatDate } from "../utils/formatters";
 import ChatBot from "../components/ChatBot";
+import backend from "~backend/client";
 
 export default function NoteDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const backend = useBackend();
   const { updateNote, deleteNote } = useNotes();
   const { toast } = useToast();
   
@@ -154,7 +153,6 @@ export default function NoteDetailPage() {
   return (
     <div className="p-6">
       <div className="max-w-4xl mx-auto">
-        {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center">
             <Link to="/">
@@ -220,12 +218,11 @@ export default function NoteDetailPage() {
           </div>
         </div>
 
-        {/* Language Detection Info */}
         {note.originalLanguage && note.translated && (
           <Card className="mb-6 border-border bg-card">
             <CardContent className="pt-4">
               <div className="flex items-center gap-2 text-sm text-muted-foreground bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
-                <Globe className="w-4 h-4 text-blue-600" />
+                <Languages className="w-4 h-4 text-blue-600" />
                 <span className="text-blue-700 dark:text-blue-300">
                   <strong>Auto-translated:</strong> Original language detected as {getLanguageName(note.originalLanguage)} and automatically translated to English
                 </span>
@@ -234,7 +231,6 @@ export default function NoteDetailPage() {
           </Card>
         )}
 
-        {/* Summary */}
         <Card className="mb-6 border-border bg-card">
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -267,7 +263,6 @@ export default function NoteDetailPage() {
           </CardContent>
         </Card>
 
-        {/* Transcript */}
         <Card className="border-border bg-card">
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -295,7 +290,6 @@ export default function NoteDetailPage() {
           </CardContent>
         </Card>
 
-        {/* ChatBot with context */}
         <ChatBot context={chatContext} />
       </div>
     </div>

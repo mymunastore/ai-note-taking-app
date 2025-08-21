@@ -7,7 +7,6 @@ export const create = api<CreateNoteRequest, Note>(
   { expose: true, method: "POST", path: "/notes" },
   async (req) => {
     try {
-      // Validate required fields
       if (!req.title || req.title.trim().length === 0) {
         throw APIError.invalidArgument("Title is required");
       }
@@ -24,16 +23,14 @@ export const create = api<CreateNoteRequest, Note>(
         throw APIError.invalidArgument("Duration must be a non-negative number");
       }
 
-      // Validate optional fields
       if (req.tags && !Array.isArray(req.tags)) {
         throw APIError.invalidArgument("Tags must be an array");
       }
 
-      // Sanitize and validate tags
       const sanitizedTags = req.tags ? req.tags
         .filter(tag => tag && typeof tag === 'string' && tag.trim().length > 0)
         .map(tag => tag.trim())
-        .slice(0, 20) // Limit to 20 tags
+        .slice(0, 20)
         : [];
 
       const row = await notesDB.queryRow<{

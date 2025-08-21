@@ -18,12 +18,10 @@ export const transcribe = api<TranscribeRequest, TranscribeResponse>(
   { expose: true, method: "POST", path: "/ai/transcribe" },
   async (req) => {
     try {
-      // Validate input
       if (!req.audioBase64 || req.audioBase64.trim() === "") {
         throw APIError.invalidArgument("Audio data is required");
       }
 
-      // Convert base64 to buffer
       let audioBuffer: Buffer;
       try {
         audioBuffer = Buffer.from(req.audioBase64, "base64");
@@ -35,20 +33,17 @@ export const transcribe = api<TranscribeRequest, TranscribeResponse>(
         throw APIError.invalidArgument("Audio data is empty");
       }
 
-      // Check file size (25MB limit)
       const maxSize = 25 * 1024 * 1024; // 25MB
       if (audioBuffer.length > maxSize) {
         throw APIError.invalidArgument("Audio file too large. Maximum size is 25MB");
       }
 
-      // Create form data for OpenAI API
       const formData = new FormData();
       const audioBlob = new Blob([audioBuffer], { type: "audio/webm" });
       formData.append("file", audioBlob, "audio.webm");
       formData.append("model", "whisper-1");
       formData.append("response_format", "verbose_json");
       
-      // First, detect the language and get initial transcription
       const detectResponse = await fetch("https://api.openai.com/v1/audio/transcriptions", {
         method: "POST",
         headers: {
@@ -76,15 +71,12 @@ export const transcribe = api<TranscribeRequest, TranscribeResponse>(
       const detectedLanguage = detectResult.language || "en";
       let transcript = detectResult.text || "";
 
-      // Validate transcript
       if (!transcript || transcript.trim().length === 0) {
         throw APIError.invalidArgument("No speech detected in audio. Please ensure clear speech and try again");
       }
 
-      // If the detected language is not English, use translation
       if (detectedLanguage !== "en") {
         try {
-          // Use translation endpoint to get English translation
           const translateFormData = new FormData();
           const translateBlob = new Blob([audioBuffer], { type: "audio/webm" });
           translateFormData.append("file", translateBlob, "audio.webm");
@@ -112,7 +104,6 @@ export const transcribe = api<TranscribeRequest, TranscribeResponse>(
           }
         } catch (translationError) {
           console.warn("Translation failed, using original transcript:", translationError);
-          // Fall back to original transcript if translation fails
         }
         
         return { 
@@ -121,7 +112,6 @@ export const transcribe = api<TranscribeRequest, TranscribeResponse>(
           translated: false
         };
       } else {
-        // For English audio, use regular transcription
         return { 
           transcript: transcript,
           originalLanguage: "en",
@@ -135,7 +125,6 @@ export const transcribe = api<TranscribeRequest, TranscribeResponse>(
         throw error;
       }
       
-      // Handle network errors
       if (error instanceof TypeError && error.message.includes("fetch")) {
         throw APIError.unavailable("Unable to connect to transcription service. Please check your internet connection");
       }

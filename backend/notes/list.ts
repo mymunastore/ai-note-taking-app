@@ -25,21 +25,18 @@ export const list = api<ListNotesParams, ListNotesResponse>(
     let queryParams: any[] = [limit, offset];
     let paramIndex = 3;
 
-    // Add search condition
     if (search) {
       whereConditions.push(`to_tsvector('english', title || ' ' || transcript) @@ plainto_tsquery('english', $${paramIndex})`);
       queryParams.push(search);
       paramIndex++;
     }
 
-    // Add tags filter
     if (tags.length > 0) {
       whereConditions.push(`tags && $${paramIndex}`);
       queryParams.push(tags);
       paramIndex++;
     }
 
-    // Add project filter
     if (projectId) {
       whereConditions.push(`project_id = $${paramIndex}`);
       queryParams.push(projectId);

@@ -149,7 +149,7 @@ export namespace ai {
         }
 
         /**
-         * Provides AI-powered chat assistance for notes and recordings using Cohere or OpenAI.
+         * Provides AI-powered chat assistance for notes and recordings.
          */
         public async chat(params: RequestType<typeof api_ai_chat_chat>): Promise<ResponseType<typeof api_ai_chat_chat>> {
             // Now make the actual call to the API
@@ -239,7 +239,7 @@ export namespace ai {
         }
 
         /**
-         * Generates a summary of the provided transcript using Cohere or OpenAI.
+         * Generates a summary of the provided transcript using OpenAI.
          */
         public async summarize(params: RequestType<typeof api_ai_summarize_summarize>): Promise<ResponseType<typeof api_ai_summarize_summarize>> {
             // Now make the actual call to the API

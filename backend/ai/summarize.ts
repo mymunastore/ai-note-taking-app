@@ -1,7 +1,6 @@
 import { api, APIError } from "encore.dev/api";
 import { secret } from "encore.dev/config";
 
-const cohereApiKey = secret("CohereApiKey");
 const openAIKey = secret("OpenAIKey");
 
 interface SummarizeRequest {
@@ -14,18 +13,16 @@ interface SummarizeResponse {
   summary: string;
 }
 
-// Generates a summary of the provided transcript using Cohere or OpenAI.
+// Generates a summary of the provided transcript using OpenAI.
 export const summarize = api<SummarizeRequest, SummarizeResponse>(
   { expose: true, method: "POST", path: "/ai/summarize" },
   async (req) => {
     try {
-      // Validate input
       if (!req.transcript || req.transcript.trim().length === 0) {
         throw APIError.invalidArgument("Transcript is required and cannot be empty");
       }
 
-      // Check transcript length (reasonable limits)
-      if (req.transcript.length > 100000) { // ~100k characters
+      if (req.transcript.length > 100000) {
         throw APIError.invalidArgument("Transcript too long. Maximum length is 100,000 characters");
       }
 
@@ -33,42 +30,6 @@ export const summarize = api<SummarizeRequest, SummarizeResponse>(
         throw APIError.invalidArgument("Transcript too short. Minimum length is 10 characters");
       }
 
-      // Try Cohere first, fallback to OpenAI if needed
-      try {
-        const response = await fetch("https://api.cohere.ai/v1/summarize", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${cohereApiKey()}`,
-          },
-          body: JSON.stringify({
-            text: req.transcript,
-            model: "command",
-            length: req.length || "medium",
-            format: req.format || "bullets",
-            temperature: 0.3,
-            extractiveness: "medium",
-            additional_command: "Focus on key points, action items, and important decisions. Include speaker insights if multiple speakers are detected.",
-          }),
-        });
-
-        if (response.ok) {
-          const result = await response.json();
-          const summary = result.summary || "";
-          
-          if (summary.trim().length > 0) {
-            return { summary };
-          }
-        } else if (response.status === 429) {
-          console.warn("Cohere rate limit exceeded, falling back to OpenAI");
-        } else {
-          console.warn("Cohere summarization failed, falling back to OpenAI:", response.status);
-        }
-      } catch (cohereError) {
-        console.warn("Cohere summarization failed, falling back to OpenAI:", cohereError);
-      }
-
-      // Fallback to OpenAI GPT-4
       const openAIResponse = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -127,7 +88,6 @@ export const summarize = api<SummarizeRequest, SummarizeResponse>(
         throw error;
       }
       
-      // Handle network errors
       if (error instanceof TypeError && error.message.includes("fetch")) {
         throw APIError.unavailable("Unable to connect to summarization service. Please check your internet connection");
       }

@@ -1,4 +1,4 @@
-import { api, APIError } from "encore.dev/api";
+import { api } from "encore.dev/api";
 import { notesDB } from "./db";
 
 interface DeleteNoteParams {

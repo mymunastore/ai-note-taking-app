@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Shield, Zap, Globe, Moon, Sun, Leaf, MessageCircle, Languages, Database, Cpu, Cloud } from "lucide-react";
+import { Sparkles, Shield, Zap, Globe, Moon, Sun, Leaf, MessageCircle, Languages, Database, Cpu } from "lucide-react";
 import { useTheme } from "../contexts/ThemeContext";
 
 export default function SettingsPage() {
@@ -23,9 +23,7 @@ export default function SettingsPage() {
         </div>
 
         <div className="grid lg:grid-cols-2 gap-6">
-          {/* Left Column */}
           <div className="space-y-6">
-            {/* Theme Settings */}
             <Card className="border-border bg-card">
               <CardHeader>
                 <CardTitle className="text-foreground flex items-center gap-2">
@@ -75,7 +73,6 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
-            {/* AI Models & Technology */}
             <Card className="border-border bg-card">
               <CardHeader>
                 <CardTitle className="text-foreground flex items-center gap-2">
@@ -93,16 +90,7 @@ export default function SettingsPage() {
                 <Separator />
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-medium text-foreground">Text Generation</span>
-                  <div className="text-right">
-                    <Badge className="bg-gradient-to-r from-purple-100 to-pink-100 text-purple-800 dark:from-purple-950/50 dark:to-pink-950/50 dark:text-purple-300 mb-1">
-                      Cohere Command-R
-                    </Badge>
-                    <div className="text-xs text-muted-foreground">Primary</div>
-                  </div>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Fallback Model</span>
-                  <Badge variant="outline" className="border-gray-300 text-gray-700 dark:border-gray-700 dark:text-gray-300">
+                  <Badge className="bg-gradient-to-r from-purple-100 to-pink-100 text-purple-800 dark:from-purple-950/50 dark:to-pink-950/50 dark:text-purple-300">
                     GPT-4o-mini
                   </Badge>
                 </div>
@@ -110,7 +98,7 @@ export default function SettingsPage() {
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-medium text-foreground">Chat Assistant</span>
                   <Badge className="bg-gradient-to-r from-emerald-100 to-teal-100 text-emerald-800 dark:from-emerald-950/50 dark:to-teal-950/50 dark:text-emerald-300">
-                    Multi-Model AI
+                    AI Assistant
                   </Badge>
                 </div>
                 <Separator />
@@ -123,7 +111,6 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
-            {/* Performance & Storage */}
             <Card className="border-border bg-card">
               <CardHeader>
                 <CardTitle className="text-foreground flex items-center gap-2">
@@ -147,25 +134,16 @@ export default function SettingsPage() {
                 </div>
                 <Separator />
                 <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium text-foreground">Authentication</span>
-                  <Badge className="bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 dark:from-green-950/50 dark:to-emerald-950/50 dark:text-green-300">
-                    Clerk
-                  </Badge>
-                </div>
-                <Separator />
-                <div className="flex justify-between items-center">
                   <span className="text-sm font-medium text-foreground">Search Engine</span>
                   <Badge className="bg-gradient-to-r from-yellow-100 to-orange-100 text-yellow-800 dark:from-yellow-950/50 dark:to-orange-950/50 dark:text-yellow-300">
-                    Full-Text + Semantic
+                    Full-Text Search
                   </Badge>
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Right Column */}
           <div className="space-y-6">
-            {/* App Information */}
             <Card className="border-border bg-card">
               <CardHeader>
                 <CardTitle className="text-foreground flex items-center gap-2">
@@ -177,7 +155,7 @@ export default function SettingsPage() {
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-medium text-foreground">Version</span>
                   <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300">
-                    4.0.0 Pro
+                    1.0.0
                   </Badge>
                 </div>
                 <Separator />
@@ -203,29 +181,14 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
-            {/* Enhanced Features */}
             <Card className="border-border bg-card">
               <CardHeader>
                 <CardTitle className="text-foreground flex items-center gap-2">
                   <Globe className="w-5 h-5 text-emerald-600" />
-                  Enhanced Features
+                  Features
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-foreground">Advanced Analytics</span>
-                  <Badge className="bg-gradient-to-r from-emerald-100 to-teal-100 text-emerald-800 border-emerald-300 dark:from-emerald-950/50 dark:to-teal-950/50 dark:text-emerald-300 dark:border-emerald-700">
-                    <Zap className="w-3 h-3 mr-1" />
-                    New
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-foreground">Semantic Search</span>
-                  <Badge className="bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-800 border-blue-300 dark:from-blue-950/50 dark:to-indigo-950/50 dark:text-blue-300 dark:border-blue-700">
-                    <Zap className="w-3 h-3 mr-1" />
-                    New
-                  </Badge>
-                </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-foreground">Multi-Language Auto-Detection</span>
                   <Badge className="bg-gradient-to-r from-purple-100 to-pink-100 text-purple-800 border-purple-300 dark:from-purple-950/50 dark:to-pink-950/50 dark:text-purple-300 dark:border-purple-700">
@@ -241,7 +204,7 @@ export default function SettingsPage() {
                   </Badge>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-foreground">Project Management</span>
+                  <span className="text-sm text-foreground">Smart Search</span>
                   <Badge className="bg-gradient-to-r from-emerald-100 to-teal-100 text-emerald-800 border-emerald-300 dark:from-emerald-950/50 dark:to-teal-950/50 dark:text-emerald-300 dark:border-emerald-700">
                     Enabled
                   </Badge>
@@ -252,17 +215,9 @@ export default function SettingsPage() {
                     Enabled
                   </Badge>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-foreground">Real-time Collaboration</span>
-                  <Badge className="bg-gradient-to-r from-orange-100 to-red-100 text-orange-800 border-orange-300 dark:from-orange-950/50 dark:to-red-950/50 dark:text-orange-300 dark:border-orange-700">
-                    <Cloud className="w-3 h-3 mr-1" />
-                    Pro
-                  </Badge>
-                </div>
               </CardContent>
             </Card>
 
-            {/* Privacy & Security */}
             <Card className="border-border bg-card">
               <CardHeader>
                 <CardTitle className="text-foreground flex items-center gap-2">
@@ -270,22 +225,19 @@ export default function SettingsPage() {
                   Privacy & Security
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent>
                 <div className="text-sm text-muted-foreground bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/20 dark:to-teal-950/20 p-4 rounded-lg border border-emerald-200 dark:border-emerald-800">
                   <p className="mb-2 text-emerald-700 dark:text-emerald-300">
                     <strong>🔒 Enhanced Security:</strong> All data is encrypted at rest and in transit using industry-standard AES-256 encryption.
                   </p>
                   <p className="mb-2 text-emerald-700 dark:text-emerald-300">
-                    <strong>🤖 AI Processing:</strong> Audio files are processed by OpenAI and Cohere with automatic data deletion after processing.
+                    <strong>🤖 AI Processing:</strong> Audio files are processed by OpenAI with automatic data deletion after processing.
                   </p>
                   <p className="mb-2 text-emerald-700 dark:text-emerald-300">
                     <strong>💬 Smart Chat:</strong> Conversations use advanced context awareness while maintaining privacy.
                   </p>
                   <p className="mb-2 text-emerald-700 dark:text-emerald-300">
                     <strong>🛡️ Zero Retention:</strong> AI providers don't store your data - everything is processed and immediately discarded.
-                  </p>
-                  <p className="mb-2 text-emerald-700 dark:text-emerald-300">
-                    <strong>🔍 Advanced Analytics:</strong> Usage patterns are analyzed locally without compromising privacy.
                   </p>
                   <p className="text-emerald-700 dark:text-emerald-300">
                     <strong>🌿 Optimized Performance:</strong> Intelligent caching and compression for faster processing and reduced bandwidth usage.
@@ -296,7 +248,6 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* System Requirements */}
         <Card className="border-border bg-card mt-6">
           <CardHeader>
             <CardTitle className="text-foreground">System Requirements & Compatibility</CardTitle>

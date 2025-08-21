@@ -1,6 +1,6 @@
 import React, { createContext, useContext, ReactNode, useRef, useCallback } from "react";
 import { useToast } from "@/components/ui/use-toast";
-import { useBackend } from "./AuthContext";
+import backend from "~backend/client";
 
 interface RecordingContextType {
   isRecording: boolean;
@@ -12,8 +12,6 @@ interface RecordingContextType {
   stopRecording: () => Promise<{ audioBlob: Blob; duration: number } | null>;
   isProcessing: boolean;
   processRecording: (audioBlob: Blob, duration: number, title: string, tags?: string[]) => Promise<void>;
-  transmissionStatus: "idle" | "uploading" | "processing" | "success" | "error";
-  retryTransmission: () => Promise<void>;
 }
 
 const RecordingContext = createContext<RecordingContextType | undefined>(undefined);
@@ -23,30 +21,25 @@ interface RecordingProviderProps {
 }
 
 export function RecordingProvider({ children }: RecordingProviderProps) {
-  const backend = useBackend();
   const [isRecording, setIsRecording] = React.useState(false);
   const [isPaused, setIsPaused] = React.useState(false);
   const [duration, setDuration] = React.useState(0);
   const [isProcessing, setIsProcessing] = React.useState(false);
-  const [transmissionStatus, setTransmissionStatus] = React.useState<"idle" | "uploading" | "processing" | "success" | "error">("idle");
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<number>(0);
   const pausedTimeRef = useRef<number>(0);
-  const lastRecordingDataRef = useRef<{ audioBlob: Blob; duration: number; title: string; tags?: string[] } | null>(null);
   
   const { toast } = useToast();
 
   const startRecording = useCallback(async () => {
     try {
-      // Enhanced browser compatibility checks
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error("Your browser doesn't support audio recording. Please use a modern browser like Chrome, Firefox, or Safari.");
       }
 
-      // Request microphone access with enhanced error handling
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
           echoCancellation: true,
@@ -57,12 +50,10 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
         } 
       });
       
-      // Enhanced MediaRecorder support check
       if (!window.MediaRecorder) {
         throw new Error("MediaRecorder is not supported in your browser.");
       }
 
-      // Try multiple MIME types for maximum compatibility
       let mimeType = '';
       const supportedTypes = [
         'audio/webm;codecs=opus',
@@ -92,7 +83,6 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
       
       mediaRecorder.onerror = (event) => {
         console.error("MediaRecorder error:", event);
-        setTransmissionStatus("error");
         toast({
           title: "Recording Error",
           description: "An error occurred during recording. Please try again.",
@@ -100,12 +90,10 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
         });
       };
       
-      // Start recording with smaller chunks for better reliability
       mediaRecorder.start(500);
       setIsRecording(true);
       setIsPaused(false);
       setDuration(0);
-      setTransmissionStatus("idle");
       
       startTimeRef.current = Date.now();
       pausedTimeRef.current = 0;
@@ -119,12 +107,11 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
 
       toast({
         title: "🎙️ Recording Started",
-        description: "SCRIBE AI is now listening with enhanced audio processing and will auto-detect the language being spoken.",
+        description: "SCRIBE AI is now listening and will auto-detect the language being spoken.",
       });
       
     } catch (error) {
       console.error("Failed to start recording:", error);
-      setTransmissionStatus("error");
       
       let errorMessage = "Failed to access microphone. Please check permissions and try again.";
       
@@ -135,15 +122,6 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
           errorMessage = "No microphone found. Please connect a microphone and try again.";
         } else if (error.name === "NotSupportedError") {
           errorMessage = "Audio recording is not supported in your browser. Please use Chrome, Firefox, or Safari.";
-        } else if (error.name === "OverconstrainedError") {
-          errorMessage = "Microphone constraints not supported. Trying with basic settings...";
-          // Retry with basic constraints
-          try {
-            const basicStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            // Continue with basic stream...
-          } catch (retryError) {
-            errorMessage = "Failed to access microphone even with basic settings.";
-          }
         } else {
           errorMessage = error.message;
         }
@@ -210,7 +188,6 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
 
       mediaRecorderRef.current.onstop = () => {
         try {
-          // Enhanced blob creation with fallback
           let audioBlob: Blob;
           
           if (audioChunksRef.current.length === 0) {
@@ -222,7 +199,6 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
               type: audioChunksRef.current[0]?.type || "audio/webm" 
             });
           } catch (blobError) {
-            // Fallback: create blob without type specification
             audioBlob = new Blob(audioChunksRef.current);
           }
 
@@ -232,7 +208,6 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
 
           const finalDuration = duration;
           
-          // Clean up
           setIsRecording(false);
           setIsPaused(false);
           if (intervalRef.current) {
@@ -240,7 +215,6 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
             intervalRef.current = null;
           }
           
-          // Stop all tracks
           if (mediaRecorderRef.current?.stream) {
             mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
           }
@@ -253,7 +227,6 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
           resolve({ audioBlob, duration: finalDuration });
         } catch (error) {
           console.error("Error stopping recording:", error);
-          setTransmissionStatus("error");
           toast({
             title: "Stop Error",
             description: "Error stopping recording. Please try again.",
@@ -267,7 +240,6 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
         mediaRecorderRef.current.stop();
       } catch (error) {
         console.error("Error stopping MediaRecorder:", error);
-        setTransmissionStatus("error");
         resolve(null);
       }
     });
@@ -275,22 +247,16 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
 
   const processRecording = useCallback(async (audioBlob: Blob, recordingDuration: number, title: string, tags?: string[]) => {
     setIsProcessing(true);
-    setTransmissionStatus("uploading");
-    
-    // Store recording data for retry functionality
-    lastRecordingDataRef.current = { audioBlob, duration: recordingDuration, title, tags };
     
     try {
-      // Enhanced validation
       if (!audioBlob || audioBlob.size === 0) {
         throw new Error("Invalid audio recording. Please try recording again.");
       }
 
-      if (audioBlob.size > 25 * 1024 * 1024) { // 25MB limit
+      if (audioBlob.size > 25 * 1024 * 1024) {
         throw new Error("Audio file too large. Please record shorter segments.");
       }
 
-      // Enhanced base64 conversion with progress tracking
       toast({
         title: "📤 Preparing Upload",
         description: "Converting audio data for transmission...",
@@ -308,43 +274,17 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
         throw new Error("Failed to process audio data. Please try again.");
       }
 
-      setTransmissionStatus("processing");
-
-      // Step 1: Enhanced language detection and transcription with retry logic
       toast({
         title: "🎯 AI Language Detection",
         description: "SCRIBE AI is analyzing your audio to detect the language being spoken...",
       });
       
-      let transcribeResponse;
-      let retryCount = 0;
-      const maxRetries = 3;
-
-      while (retryCount < maxRetries) {
-        try {
-          transcribeResponse = await backend.ai.transcribe({ audioBase64: base64Audio });
-          break;
-        } catch (transcribeError) {
-          retryCount++;
-          if (retryCount >= maxRetries) {
-            throw new Error(`Transcription failed after ${maxRetries} attempts. Please check your internet connection and try again.`);
-          }
-          
-          toast({
-            title: "🔄 Retrying Transcription",
-            description: `Attempt ${retryCount + 1} of ${maxRetries}...`,
-          });
-          
-          // Wait before retry with exponential backoff
-          await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
-        }
-      }
+      const transcribeResponse = await backend.ai.transcribe({ audioBase64: base64Audio });
       
       if (!transcribeResponse || !transcribeResponse.transcript || !transcribeResponse.transcript.trim()) {
         throw new Error("No speech detected in recording. Please ensure you spoke clearly and try again.");
       }
 
-      // Step 2: Enhanced language detection feedback
       if (transcribeResponse.originalLanguage && transcribeResponse.originalLanguage !== "en") {
         const languageNames: Record<string, string> = {
           es: "Spanish", fr: "French", de: "German", it: "Italian", pt: "Portuguese",
@@ -366,41 +306,17 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
         });
       }
       
-      // Step 3: Enhanced AI summary generation with retry logic
       toast({
         title: "🤖 Generating AI Summary",
         description: "Creating intelligent summary with key points and action items...",
       });
       
-      let summaryResponse;
-      retryCount = 0;
-
-      while (retryCount < maxRetries) {
-        try {
-          summaryResponse = await backend.ai.summarize({ 
-            transcript: transcribeResponse.transcript,
-            length: "medium",
-            format: "bullets"
-          });
-          break;
-        } catch (summaryError) {
-          retryCount++;
-          if (retryCount >= maxRetries) {
-            console.warn("Summary generation failed, using transcript as summary");
-            summaryResponse = { summary: `Summary generation failed. Transcript: ${transcribeResponse.transcript.substring(0, 500)}...` };
-            break;
-          }
-          
-          toast({
-            title: "🔄 Retrying Summary Generation",
-            description: `Attempt ${retryCount + 1} of ${maxRetries}...`,
-          });
-          
-          await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
-        }
-      }
+      const summaryResponse = await backend.ai.summarize({ 
+        transcript: transcribeResponse.transcript,
+        length: "medium",
+        format: "bullets"
+      });
       
-      // Step 4: Enhanced data persistence with validation
       toast({
         title: "💾 Saving Your Note",
         description: "Storing your transcription and AI analysis securely...",
@@ -416,70 +332,34 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
         tags: tags || [],
       };
 
-      // Validate note data before saving
       if (!noteData.title.trim() || !noteData.transcript.trim()) {
         throw new Error("Invalid note data. Please try again.");
       }
 
       await backend.notes.create(noteData);
       
-      setTransmissionStatus("success");
-      
-      // Final success message with enhanced details
       toast({
         title: "✅ Processing Complete!",
         description: `Successfully processed ${Math.floor(recordingDuration / 60)}:${(recordingDuration % 60).toString().padStart(2, '0')} of audio with AI transcription${transcribeResponse.translated ? ' and translation' : ''}.`,
       });
-
-      // Clear retry data on success
-      lastRecordingDataRef.current = null;
       
     } catch (error) {
       console.error("Failed to process recording:", error);
-      setTransmissionStatus("error");
       
-      let errorMessage = "Transmission failed. Please check your internet connection and try again.";
+      let errorMessage = "Processing failed. Please check your internet connection and try again.";
       if (error instanceof Error) {
         errorMessage = error.message;
       }
       
       toast({
-        title: "❌ Transmission Failed",
+        title: "❌ Processing Failed",
         description: errorMessage,
         variant: "destructive",
-        action: lastRecordingDataRef.current ? (
-          <button 
-            onClick={() => retryTransmission()}
-            className="bg-emerald-600 text-white px-3 py-1 rounded text-sm hover:bg-emerald-700"
-          >
-            Retry
-          </button>
-        ) : undefined,
       });
     } finally {
       setIsProcessing(false);
     }
-  }, [backend, toast]);
-
-  const retryTransmission = useCallback(async () => {
-    if (!lastRecordingDataRef.current) {
-      toast({
-        title: "No Data to Retry",
-        description: "No previous recording data available for retry.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const { audioBlob, duration, title, tags } = lastRecordingDataRef.current;
-    
-    toast({
-      title: "🔄 Retrying Transmission",
-      description: "Attempting to process your recording again...",
-    });
-
-    await processRecording(audioBlob, duration, title, tags);
-  }, [processRecording, toast]);
+  }, [toast]);
 
   const value: RecordingContextType = {
     isRecording,
@@ -491,8 +371,6 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
     stopRecording,
     isProcessing,
     processRecording,
-    transmissionStatus,
-    retryTransmission,
   };
 
   return <RecordingContext.Provider value={value}>{children}</RecordingContext.Provider>;
