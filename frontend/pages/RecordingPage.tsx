@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { useRecording } from "../contexts/RecordingContext";
@@ -38,31 +37,43 @@ export default function RecordingPage() {
   const [newTag, setNewTag] = useState("");
 
   const handleStartRecording = async () => {
-    await startRecording();
+    try {
+      await startRecording();
+    } catch (error) {
+      console.error("Failed to start recording:", error);
+    }
   };
 
   const handleStopRecording = async () => {
-    const result = await stopRecording();
-    if (result) {
-      setAudioBlob(result.audioBlob);
-      setRecordingDuration(result.duration);
+    try {
+      const result = await stopRecording();
+      if (result) {
+        setAudioBlob(result.audioBlob);
+        setRecordingDuration(result.duration);
+      }
+    } catch (error) {
+      console.error("Failed to stop recording:", error);
     }
   };
 
   const handleSaveRecording = async () => {
     if (!audioBlob) return;
 
-    await processRecording(audioBlob, recordingDuration, title, tags);
-    
-    // Reset state
-    setAudioBlob(null);
-    setRecordingDuration(0);
-    setTitle("");
-    setTags([]);
-    
-    // Refresh notes list and navigate back
-    refetch();
-    navigate("/");
+    try {
+      await processRecording(audioBlob, recordingDuration, title, tags);
+      
+      // Reset state
+      setAudioBlob(null);
+      setRecordingDuration(0);
+      setTitle("");
+      setTags([]);
+      
+      // Refresh notes list and navigate back
+      refetch();
+      navigate("/");
+    } catch (error) {
+      console.error("Failed to save recording:", error);
+    }
   };
 
   const handleDiscard = () => {

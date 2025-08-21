@@ -272,22 +272,24 @@ export default function AdvancedSearch({ onSearch, availableTags, isLoading }: A
               )}
 
               {/* Available Tags */}
-              <div className="flex flex-wrap gap-2">
-                {availableTags
-                  .filter(tag => !filters.tags?.includes(tag))
-                  .slice(0, 10)
-                  .map((tag) => (
-                    <Badge
-                      key={tag}
-                      variant="outline"
-                      className="cursor-pointer hover:bg-emerald-50 dark:hover:bg-emerald-950/20"
-                      onClick={() => addTag(tag)}
-                    >
-                      <Tag className="w-3 h-3 mr-1" />
-                      {tag}
-                    </Badge>
-                  ))}
-              </div>
+              {availableTags.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {availableTags
+                    .filter(tag => !filters.tags?.includes(tag))
+                    .slice(0, 10)
+                    .map((tag) => (
+                      <Badge
+                        key={tag}
+                        variant="outline"
+                        className="cursor-pointer hover:bg-emerald-50 dark:hover:bg-emerald-950/20"
+                        onClick={() => addTag(tag)}
+                      >
+                        <Tag className="w-3 h-3 mr-1" />
+                        {tag}
+                      </Badge>
+                    ))}
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

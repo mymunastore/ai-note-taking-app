@@ -37,6 +37,11 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
 
   const startRecording = useCallback(async () => {
     try {
+      // Check if browser supports getUserMedia
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error("Your browser doesn't support audio recording. Please use a modern browser like Chrome, Firefox, or Safari.");
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
           echoCancellation: true,
@@ -46,9 +51,24 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
         } 
       });
       
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'audio/webm;codecs=opus'
-      });
+      // Check MediaRecorder support
+      if (!window.MediaRecorder) {
+        throw new Error("MediaRecorder is not supported in your browser.");
+      }
+
+      // Try different MIME types for better compatibility
+      let mimeType = 'audio/webm;codecs=opus';
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        mimeType = 'audio/webm';
+        if (!MediaRecorder.isTypeSupported(mimeType)) {
+          mimeType = 'audio/mp4';
+          if (!MediaRecorder.isTypeSupported(mimeType)) {
+            mimeType = ''; // Let browser choose
+          }
+        }
+      }
+      
+      const mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
       
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
@@ -57,6 +77,15 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
         if (event.data.size > 0) {
           audioChunksRef.current.push(event.data);
         }
+      };
+      
+      mediaRecorder.onerror = (event) => {
+        console.error("MediaRecorder error:", event);
+        toast({
+          title: "Recording Error",
+          description: "An error occurred during recording. Please try again.",
+          variant: "destructive",
+        });
       };
       
       mediaRecorder.start(1000); // Collect data every second for better quality
@@ -81,9 +110,24 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
       
     } catch (error) {
       console.error("Failed to start recording:", error);
+      
+      let errorMessage = "Failed to access microphone. Please check permissions and try again.";
+      
+      if (error instanceof Error) {
+        if (error.name === "NotAllowedError") {
+          errorMessage = "Microphone access denied. Please allow microphone permissions and try again.";
+        } else if (error.name === "NotFoundError") {
+          errorMessage = "No microphone found. Please connect a microphone and try again.";
+        } else if (error.name === "NotSupportedError") {
+          errorMessage = "Audio recording is not supported in your browser. Please use Chrome, Firefox, or Safari.";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
       toast({
         title: "Recording Error",
-        description: "Failed to access microphone. Please check permissions and try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     }
@@ -91,27 +135,45 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
 
   const pauseRecording = useCallback(() => {
     if (mediaRecorderRef.current && isRecording && !isPaused) {
-      mediaRecorderRef.current.pause();
-      setIsPaused(true);
-      pausedTimeRef.current += Date.now() - startTimeRef.current;
-      
-      toast({
-        title: "Recording Paused",
-        description: "Recording has been paused. Click resume to continue.",
-      });
+      try {
+        mediaRecorderRef.current.pause();
+        setIsPaused(true);
+        pausedTimeRef.current += Date.now() - startTimeRef.current;
+        
+        toast({
+          title: "Recording Paused",
+          description: "Recording has been paused. Click resume to continue.",
+        });
+      } catch (error) {
+        console.error("Failed to pause recording:", error);
+        toast({
+          title: "Pause Error",
+          description: "Failed to pause recording. Please try again.",
+          variant: "destructive",
+        });
+      }
     }
   }, [isRecording, isPaused, toast]);
 
   const resumeRecording = useCallback(() => {
     if (mediaRecorderRef.current && isRecording && isPaused) {
-      mediaRecorderRef.current.resume();
-      setIsPaused(false);
-      startTimeRef.current = Date.now();
-      
-      toast({
-        title: "Recording Resumed",
-        description: "Recording has been resumed. SCRIBE AI is listening again.",
-      });
+      try {
+        mediaRecorderRef.current.resume();
+        setIsPaused(false);
+        startTimeRef.current = Date.now();
+        
+        toast({
+          title: "Recording Resumed",
+          description: "Recording has been resumed. SCRIBE AI is listening again.",
+        });
+      } catch (error) {
+        console.error("Failed to resume recording:", error);
+        toast({
+          title: "Resume Error",
+          description: "Failed to resume recording. Please try again.",
+          variant: "destructive",
+        });
+      }
     }
   }, [isRecording, isPaused, toast]);
 
@@ -123,31 +185,48 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
       }
 
       mediaRecorderRef.current.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm;codecs=opus" });
-        const finalDuration = duration;
-        
-        // Clean up
-        setIsRecording(false);
-        setIsPaused(false);
-        if (intervalRef.current) {
-          clearInterval(intervalRef.current);
-          intervalRef.current = null;
+        try {
+          const audioBlob = new Blob(audioChunksRef.current, { 
+            type: audioChunksRef.current[0]?.type || "audio/webm" 
+          });
+          const finalDuration = duration;
+          
+          // Clean up
+          setIsRecording(false);
+          setIsPaused(false);
+          if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+          }
+          
+          // Stop all tracks
+          if (mediaRecorderRef.current?.stream) {
+            mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+          }
+          
+          toast({
+            title: "Recording Complete",
+            description: `Captured ${Math.floor(finalDuration / 60)}:${(finalDuration % 60).toString().padStart(2, '0')} of audio. Ready for AI processing.`,
+          });
+          
+          resolve({ audioBlob, duration: finalDuration });
+        } catch (error) {
+          console.error("Error stopping recording:", error);
+          toast({
+            title: "Stop Error",
+            description: "Error stopping recording. Please try again.",
+            variant: "destructive",
+          });
+          resolve(null);
         }
-        
-        // Stop all tracks
-        if (mediaRecorderRef.current?.stream) {
-          mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
-        }
-        
-        toast({
-          title: "Recording Complete",
-          description: `Captured ${Math.floor(finalDuration / 60)}:${(finalDuration % 60).toString().padStart(2, '0')} of audio. Ready for AI processing.`,
-        });
-        
-        resolve({ audioBlob, duration: finalDuration });
       };
 
-      mediaRecorderRef.current.stop();
+      try {
+        mediaRecorderRef.current.stop();
+      } catch (error) {
+        console.error("Error stopping MediaRecorder:", error);
+        resolve(null);
+      }
     });
   }, [isRecording, duration, toast]);
 
@@ -155,10 +234,19 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
     setIsProcessing(true);
     
     try {
+      // Validate audio blob
+      if (!audioBlob || audioBlob.size === 0) {
+        throw new Error("Invalid audio recording. Please try recording again.");
+      }
+
       // Convert blob to base64
       const arrayBuffer = await audioBlob.arrayBuffer();
       const base64Audio = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
       
+      if (!base64Audio) {
+        throw new Error("Failed to process audio data. Please try again.");
+      }
+
       // Step 1: Auto-detect language and transcribe
       toast({
         title: "🎯 Auto-Detecting Language",
@@ -167,7 +255,7 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
       
       const transcribeResponse = await backend.ai.transcribe({ audioBase64: base64Audio });
       
-      if (!transcribeResponse.transcript.trim()) {
+      if (!transcribeResponse.transcript || !transcribeResponse.transcript.trim()) {
         throw new Error("No speech detected in recording. Please ensure you spoke clearly and try again.");
       }
 
@@ -205,6 +293,10 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
         format: "bullets"
       });
       
+      if (!summaryResponse.summary) {
+        throw new Error("Failed to generate summary. Using transcript as summary.");
+      }
+      
       // Step 4: Save note with enhanced metadata
       toast({
         title: "💾 Saving Your Note",
@@ -214,7 +306,7 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
       await backend.notes.create({
         title: title || `Recording ${new Date().toLocaleDateString()}`,
         transcript: transcribeResponse.transcript,
-        summary: summaryResponse.summary,
+        summary: summaryResponse.summary || "Summary not available",
         duration: recordingDuration,
         originalLanguage: transcribeResponse.originalLanguage,
         translated: transcribeResponse.translated,
@@ -229,9 +321,15 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
       
     } catch (error) {
       console.error("Failed to process recording:", error);
+      
+      let errorMessage = "Failed to process recording. Please try again.";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: "❌ Processing Error",
-        description: error instanceof Error ? error.message : "Failed to process recording. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {

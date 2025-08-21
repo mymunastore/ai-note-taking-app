@@ -75,7 +75,9 @@ export default function NotesListPage() {
   const allTags = React.useMemo(() => {
     const tagSet = new Set<string>();
     notes.forEach(note => {
-      note.tags.forEach(tag => tagSet.add(tag));
+      if (note.tags && Array.isArray(note.tags)) {
+        note.tags.forEach(tag => tagSet.add(tag));
+      }
     });
     return Array.from(tagSet).sort();
   }, [notes]);
@@ -222,7 +224,7 @@ export default function NotesListPage() {
                           </div>
 
                           {/* Tags */}
-                          {note.tags.length > 0 && (
+                          {note.tags && note.tags.length > 0 && (
                             <div className="flex flex-wrap gap-1 mt-2">
                               {note.tags.map((tag) => (
                                 <Badge key={tag} variant="secondary" className="text-xs bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300">

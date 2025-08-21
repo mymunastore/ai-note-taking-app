@@ -19,6 +19,20 @@ export const summarize = api<SummarizeRequest, SummarizeResponse>(
   { expose: true, method: "POST", path: "/ai/summarize" },
   async (req) => {
     try {
+      // Validate input
+      if (!req.transcript || req.transcript.trim().length === 0) {
+        throw APIError.invalidArgument("Transcript is required and cannot be empty");
+      }
+
+      // Check transcript length (reasonable limits)
+      if (req.transcript.length > 100000) { // ~100k characters
+        throw APIError.invalidArgument("Transcript too long. Maximum length is 100,000 characters");
+      }
+
+      if (req.transcript.trim().length < 10) {
+        throw APIError.invalidArgument("Transcript too short. Minimum length is 10 characters");
+      }
+
       // Try Cohere first, fallback to OpenAI if needed
       try {
         const response = await fetch("https://api.cohere.ai/v1/summarize", {
@@ -40,8 +54,15 @@ export const summarize = api<SummarizeRequest, SummarizeResponse>(
 
         if (response.ok) {
           const result = await response.json();
-          const summary = result.summary || "No summary available";
-          return { summary };
+          const summary = result.summary || "";
+          
+          if (summary.trim().length > 0) {
+            return { summary };
+          }
+        } else if (response.status === 429) {
+          console.warn("Cohere rate limit exceeded, falling back to OpenAI");
+        } else {
+          console.warn("Cohere summarization failed, falling back to OpenAI:", response.status);
         }
       } catch (cohereError) {
         console.warn("Cohere summarization failed, falling back to OpenAI:", cohereError);
@@ -79,17 +100,39 @@ export const summarize = api<SummarizeRequest, SummarizeResponse>(
       });
 
       if (!openAIResponse.ok) {
-        const error = await openAIResponse.text();
-        throw APIError.internal(`OpenAI API error: ${error}`);
+        const errorText = await openAIResponse.text();
+        console.error("OpenAI summarization error:", errorText);
+        
+        if (openAIResponse.status === 400) {
+          throw APIError.invalidArgument("Invalid transcript content");
+        } else if (openAIResponse.status === 429) {
+          throw APIError.resourceExhausted("Rate limit exceeded. Please try again later");
+        } else {
+          throw APIError.internal(`OpenAI API error: ${openAIResponse.status}`);
+        }
       }
 
       const openAIResult = await openAIResponse.json();
-      const summary = openAIResult.choices[0]?.message?.content || "No summary available";
+      const summary = openAIResult.choices[0]?.message?.content || "";
+
+      if (!summary || summary.trim().length === 0) {
+        throw APIError.internal("Failed to generate summary");
+      }
 
       return { summary };
     } catch (error) {
       console.error("Summarization error:", error);
-      throw APIError.internal("Failed to generate summary");
+      
+      if (error instanceof APIError) {
+        throw error;
+      }
+      
+      // Handle network errors
+      if (error instanceof TypeError && error.message.includes("fetch")) {
+        throw APIError.unavailable("Unable to connect to summarization service. Please check your internet connection");
+      }
+      
+      throw APIError.internal("Failed to generate summary. Please try again");
     }
   }
 );
