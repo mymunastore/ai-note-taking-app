@@ -1,6 +1,8 @@
-import React, { createContext, useContext, ReactNode, useRef, useCallback } from "react";
+import React, { createContext, useContext, ReactNode, useRef, useCallback, useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import backend from "~backend/client";
+
+type PermissionStatus = 'prompt' | 'granted' | 'denied';
 
 interface RecordingContextType {
   isRecording: boolean;
@@ -12,6 +14,8 @@ interface RecordingContextType {
   stopRecording: () => Promise<{ audioBlob: Blob; duration: number } | null>;
   isProcessing: boolean;
   processRecording: (audioBlob: Blob, duration: number, title: string, tags?: string[]) => Promise<void>;
+  permissionStatus: PermissionStatus;
+  checkPermission: () => void;
 }
 
 const RecordingContext = createContext<RecordingContextType | undefined>(undefined);
@@ -25,6 +29,7 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
   const [isPaused, setIsPaused] = React.useState(false);
   const [duration, setDuration] = React.useState(0);
   const [isProcessing, setIsProcessing] = React.useState(false);
+  const [permissionStatus, setPermissionStatus] = useState<PermissionStatus>('prompt');
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -33,6 +38,27 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
   const pausedTimeRef = useRef<number>(0);
   
   const { toast } = useToast();
+
+  const checkPermission = useCallback(async () => {
+    if (!navigator.permissions) {
+      setPermissionStatus('prompt');
+      return;
+    }
+    try {
+      const result = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+      setPermissionStatus(result.state as PermissionStatus);
+      result.onchange = () => {
+        setPermissionStatus(result.state as PermissionStatus);
+      };
+    } catch (error) {
+      console.error("Error checking microphone permission:", error);
+      setPermissionStatus('prompt');
+    }
+  }, []);
+
+  useEffect(() => {
+    checkPermission();
+  }, [checkPermission]);
 
   const startRecording = useCallback(async () => {
     try {
@@ -117,7 +143,8 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
       
       if (error instanceof Error) {
         if (error.name === "NotAllowedError") {
-          errorMessage = "Microphone access denied. Please allow microphone permissions and try again.";
+          errorMessage = "Microphone access denied. Please go to your browser's site settings to allow microphone access for this page.";
+          checkPermission();
         } else if (error.name === "NotFoundError") {
           errorMessage = "No microphone found. Please connect a microphone and try again.";
         } else if (error.name === "NotSupportedError") {
@@ -133,7 +160,7 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
         variant: "destructive",
       });
     }
-  }, [isPaused, toast]);
+  }, [isPaused, toast, checkPermission]);
 
   const pauseRecording = useCallback(() => {
     if (mediaRecorderRef.current && isRecording && !isPaused) {
@@ -371,6 +398,8 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
     stopRecording,
     isProcessing,
     processRecording,
+    permissionStatus,
+    checkPermission,
   };
 
   return <RecordingContext.Provider value={value}>{children}</RecordingContext.Provider>;

@@ -24,6 +24,7 @@ export default function RecordingPage() {
     stopRecording,
     isProcessing,
     processRecording,
+    permissionStatus,
   } = useRecording();
 
   const [title, setTitle] = useState("");
@@ -197,8 +198,12 @@ export default function RecordingPage() {
               <div className="flex items-center justify-center gap-2 mb-4">
                 {isRecording && !isPaused && <Activity className="w-5 h-5 animate-pulse text-emerald-600" />}
                 <Badge 
-                  variant={isRecording ? (isPaused ? "secondary" : "default") : "outline"}
+                  variant={
+                    permissionStatus === 'denied' ? 'destructive' :
+                    isRecording ? (isPaused ? "secondary" : "default") : "outline"
+                  }
                   className={`text-sm px-3 py-1 ${
+                    permissionStatus === 'denied' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
                     isRecording 
                       ? isPaused 
                         ? "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200" 
@@ -206,7 +211,8 @@ export default function RecordingPage() {
                       : "bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200"
                   }`}
                 >
-                  {isRecording
+                  {permissionStatus === 'denied' ? '⛔ Mic Permission Denied' :
+                   isRecording
                     ? isPaused
                       ? "Recording Paused"
                       : "🔴 Live Recording"
@@ -216,7 +222,13 @@ export default function RecordingPage() {
                 </Badge>
               </div>
 
-              {autoLanguageDetection && (
+              {permissionStatus === 'denied' && (
+                <div className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/20 p-2 rounded-lg border border-red-200 dark:border-red-800">
+                  Microphone access is blocked. Please enable it in your browser settings to start recording.
+                </div>
+              )}
+
+              {permissionStatus !== 'denied' && autoLanguageDetection && (
                 <div className="text-xs text-muted-foreground bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 p-2 rounded-lg border border-blue-200 dark:border-blue-800">
                   <Globe className="w-4 h-4 inline mr-1" />
                   AI Language Detection Active - Speak in any of 50+ supported languages
@@ -229,7 +241,8 @@ export default function RecordingPage() {
                 <Button
                   onClick={handleStartRecording}
                   size="lg"
-                  className="bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105"
+                  disabled={permissionStatus === 'denied'}
+                  className="bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Mic className="w-5 h-5 mr-2" />
                   Start Recording
