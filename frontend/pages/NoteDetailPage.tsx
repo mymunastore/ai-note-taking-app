@@ -1,7 +1,7 @@
 import React from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Clock, Calendar, Edit3, Trash2, Copy, Sparkles } from "lucide-react";
+import { ArrowLeft, Clock, Calendar, Edit3, Trash2, Copy, Sparkles, Globe, Languages } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,7 @@ import { useToast } from "@/components/ui/use-toast";
 import backend from "~backend/client";
 import { useNotes } from "../contexts/NotesContext";
 import { formatDuration, formatDate } from "../utils/formatters";
+import ChatBot from "../components/ChatBot";
 
 export default function NoteDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -98,6 +99,24 @@ export default function NoteDetailPage() {
     }
   };
 
+  const getLanguageName = (code: string) => {
+    const languages: Record<string, string> = {
+      en: "English",
+      es: "Spanish",
+      fr: "French",
+      de: "German",
+      it: "Italian",
+      pt: "Portuguese",
+      ru: "Russian",
+      ja: "Japanese",
+      ko: "Korean",
+      zh: "Chinese",
+      ar: "Arabic",
+      hi: "Hindi",
+    };
+    return languages[code] || code.toUpperCase();
+  };
+
   if (isLoading) {
     return (
       <div className="p-6">
@@ -128,6 +147,8 @@ export default function NoteDetailPage() {
       </div>
     );
   }
+
+  const chatContext = `Note: ${note.title}\nSummary: ${note.summary}\nTranscript: ${note.transcript}`;
 
   return (
     <div className="p-6">
@@ -163,6 +184,12 @@ export default function NoteDetailPage() {
                   <Calendar className="w-4 h-4 mr-1" />
                   {formatDate(note.createdAt)}
                 </div>
+                {note.originalLanguage && note.originalLanguage !== "en" && (
+                  <div className="flex items-center">
+                    <Languages className="w-4 h-4 mr-1" />
+                    {getLanguageName(note.originalLanguage)} → English
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -191,6 +218,20 @@ export default function NoteDetailPage() {
             )}
           </div>
         </div>
+
+        {/* Language Detection Info */}
+        {note.originalLanguage && note.translated && (
+          <Card className="mb-6 border-border bg-card">
+            <CardContent className="pt-4">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
+                <Globe className="w-4 h-4 text-blue-600" />
+                <span className="text-blue-700 dark:text-blue-300">
+                  <strong>Auto-translated:</strong> Original language detected as {getLanguageName(note.originalLanguage)} and automatically translated to English
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Summary */}
         <Card className="mb-6 border-border bg-card">
@@ -230,7 +271,9 @@ export default function NoteDetailPage() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center">
-                <Badge variant="outline" className="mr-2 border-teal-200 text-teal-700 dark:border-teal-800 dark:text-teal-300">Full Transcript</Badge>
+                <Badge variant="outline" className="mr-2 border-teal-200 text-teal-700 dark:border-teal-800 dark:text-teal-300">
+                  {note.translated ? "Translated Transcript" : "Full Transcript"}
+                </Badge>
               </CardTitle>
               <Button
                 variant="ghost"
@@ -250,6 +293,9 @@ export default function NoteDetailPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* ChatBot with context */}
+        <ChatBot context={chatContext} />
       </div>
     </div>
   );

@@ -16,10 +16,12 @@ export const get = api<GetNoteParams, Note>(
       transcript: string;
       summary: string;
       duration: number;
+      original_language: string | null;
+      translated: boolean | null;
       created_at: Date;
       updated_at: Date;
     }>`
-      SELECT id, title, transcript, summary, duration, created_at, updated_at
+      SELECT id, title, transcript, summary, duration, original_language, translated, created_at, updated_at
       FROM notes
       WHERE id = ${params.id}
     `;
@@ -34,6 +36,8 @@ export const get = api<GetNoteParams, Note>(
       transcript: row.transcript,
       summary: row.summary,
       duration: row.duration,
+      originalLanguage: row.original_language || undefined,
+      translated: row.translated || undefined,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };

@@ -6,6 +6,7 @@ import { NotesProvider } from "./contexts/NotesContext";
 import { RecordingProvider } from "./contexts/RecordingContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Layout from "./components/Layout";
+import ChatBot from "./components/ChatBot";
 import NotesListPage from "./pages/NotesListPage";
 import NoteDetailPage from "./pages/NoteDetailPage";
 import RecordingPage from "./pages/RecordingPage";
@@ -36,6 +37,7 @@ export default function App() {
                     <Route path="/settings" element={<SettingsPage />} />
                   </Routes>
                 </Layout>
+                <ChatBot />
                 <Toaster />
               </div>
             </Router>

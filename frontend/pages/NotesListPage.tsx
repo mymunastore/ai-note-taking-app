@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Search, Plus, Clock, FileText, Trash2, Mic, Sparkles } from "lucide-react";
+import { Search, Plus, Clock, FileText, Trash2, Mic, Sparkles, Languages } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
 import { useNotes } from "../contexts/NotesContext";
 import { formatDuration, formatDate } from "../utils/formatters";
+import ChatBot from "../components/ChatBot";
 
 export default function NotesListPage() {
   const { notes, isLoading, searchQuery, setSearchQuery, deleteNote } = useNotes();
@@ -32,6 +33,24 @@ export default function NotesListPage() {
     }
   };
 
+  const getLanguageName = (code: string) => {
+    const languages: Record<string, string> = {
+      en: "English",
+      es: "Spanish",
+      fr: "French",
+      de: "German",
+      it: "Italian",
+      pt: "Portuguese",
+      ru: "Russian",
+      ja: "Japanese",
+      ko: "Korean",
+      zh: "Chinese",
+      ar: "Arabic",
+      hi: "Hindi",
+    };
+    return languages[code] || code.toUpperCase();
+  };
+
   if (isLoading) {
     return (
       <div className="p-6">
@@ -47,6 +66,10 @@ export default function NotesListPage() {
       </div>
     );
   }
+
+  const allNotesContext = notes.length > 0 
+    ? `User's notes collection:\n${notes.map(note => `- ${note.title}: ${note.summary.substring(0, 200)}...`).join('\n')}`
+    : undefined;
 
   return (
     <div className="p-6">
@@ -123,6 +146,14 @@ export default function NotesListPage() {
                           {formatDuration(note.duration)}
                         </div>
                         <span>{formatDate(note.createdAt)}</span>
+                        {note.originalLanguage && note.originalLanguage !== "en" && (
+                          <div className="flex items-center">
+                            <Languages className="w-4 h-4 mr-1" />
+                            <span className="text-xs bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-300 px-2 py-1 rounded">
+                              {getLanguageName(note.originalLanguage)} → EN
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
                     <Button
@@ -148,7 +179,7 @@ export default function NotesListPage() {
                     {note.transcript && (
                       <div>
                         <Badge variant="outline" className="mb-2 border-teal-200 text-teal-700 dark:border-teal-800 dark:text-teal-300">
-                          Transcript Preview
+                          {note.translated ? "Translated Preview" : "Transcript Preview"}
                         </Badge>
                         <p className="text-muted-foreground text-sm line-clamp-2">
                           {note.transcript.substring(0, 200)}
@@ -162,6 +193,9 @@ export default function NotesListPage() {
             ))}
           </div>
         )}
+
+        {/* ChatBot with context */}
+        <ChatBot context={allNotesContext} />
       </div>
     </div>
   );

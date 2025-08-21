@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Shield, Zap, Globe, Moon, Sun, Leaf } from "lucide-react";
+import { Sparkles, Shield, Zap, Globe, Moon, Sun, Leaf, MessageCircle, Languages } from "lucide-react";
 import { useTheme } from "../contexts/ThemeContext";
 
 export default function SettingsPage() {
@@ -78,7 +78,7 @@ export default function SettingsPage() {
               <div className="flex justify-between items-center">
                 <span className="text-sm font-medium text-foreground">Version</span>
                 <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300">
-                  2.0.0
+                  3.0.0
                 </Badge>
               </div>
               <Separator />
@@ -86,7 +86,7 @@ export default function SettingsPage() {
                 <span className="text-sm font-medium text-foreground">AI Models</span>
                 <div className="text-right">
                   <div className="text-sm text-foreground">OpenAI Whisper (Transcription)</div>
-                  <div className="text-sm text-muted-foreground">GPT-4o-mini (Summarization)</div>
+                  <div className="text-sm text-muted-foreground">GPT-4o-mini (Summarization & Chat)</div>
                 </div>
               </div>
               <Separator />
@@ -119,9 +119,30 @@ export default function SettingsPage() {
                 </Badge>
               </div>
               <div className="flex items-center justify-between">
+                <span className="text-sm text-foreground">Auto Language Detection</span>
+                <Badge className="bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-800 border-blue-300 dark:from-blue-950/50 dark:to-indigo-950/50 dark:text-blue-300 dark:border-blue-700">
+                  <Languages className="w-3 h-3 mr-1" />
+                  New
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-foreground">Auto Translation to English</span>
+                <Badge className="bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-800 border-blue-300 dark:from-blue-950/50 dark:to-indigo-950/50 dark:text-blue-300 dark:border-blue-700">
+                  <Languages className="w-3 h-3 mr-1" />
+                  New
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between">
                 <span className="text-sm text-foreground">AI Summarization</span>
                 <Badge className="bg-gradient-to-r from-emerald-100 to-teal-100 text-emerald-800 border-emerald-300 dark:from-emerald-950/50 dark:to-teal-950/50 dark:text-emerald-300 dark:border-emerald-700">
                   Enabled
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-foreground">AI Chat Assistant</span>
+                <Badge className="bg-gradient-to-r from-purple-100 to-pink-100 text-purple-800 border-purple-300 dark:from-purple-950/50 dark:to-pink-950/50 dark:text-purple-300 dark:border-purple-700">
+                  <MessageCircle className="w-3 h-3 mr-1" />
+                  New
                 </Badge>
               </div>
               <div className="flex items-center justify-between">
@@ -135,6 +156,29 @@ export default function SettingsPage() {
                 <Badge className="bg-gradient-to-r from-emerald-100 to-teal-100 text-emerald-800 border-emerald-300 dark:from-emerald-950/50 dark:to-teal-950/50 dark:text-emerald-300 dark:border-emerald-700">
                   Enabled
                 </Badge>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Language Support */}
+          <Card className="border-border bg-card">
+            <CardHeader>
+              <CardTitle className="text-foreground flex items-center gap-2">
+                <Languages className="w-5 h-5 text-emerald-600" />
+                Language Support
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="text-sm text-muted-foreground bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+                <p className="mb-2 text-blue-700 dark:text-blue-300">
+                  <strong>🌍 Auto-Detection:</strong> SCRIBE automatically detects the language being spoken in your recordings
+                </p>
+                <p className="mb-2 text-blue-700 dark:text-blue-300">
+                  <strong>🔄 Auto-Translation:</strong> Non-English recordings are automatically translated to English for universal accessibility
+                </p>
+                <p className="text-blue-700 dark:text-blue-300">
+                  <strong>🗣️ Supported Languages:</strong> English, Spanish, French, German, Italian, Portuguese, Russian, Japanese, Korean, Chinese, Arabic, Hindi, and many more
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -153,7 +197,10 @@ export default function SettingsPage() {
                   <strong>🔒 Data Storage:</strong> All recordings, transcripts, and summaries are stored locally in your browser's secure database.
                 </p>
                 <p className="mb-2 text-emerald-700 dark:text-emerald-300">
-                  <strong>🤖 AI Processing:</strong> Audio files are sent to OpenAI's servers for transcription and summarization. OpenAI does not store or use this data for training.
+                  <strong>🤖 AI Processing:</strong> Audio files are sent to OpenAI's servers for transcription, translation, and summarization. OpenAI does not store or use this data for training.
+                </p>
+                <p className="mb-2 text-emerald-700 dark:text-emerald-300">
+                  <strong>💬 Chat Assistant:</strong> Chat conversations are processed by AI but not stored permanently - only used for providing contextual responses.
                 </p>
                 <p className="mb-2 text-emerald-700 dark:text-emerald-300">
                   <strong>🛡️ Privacy:</strong> No personal data is collected or shared with third parties beyond the AI processing services.
@@ -180,6 +227,9 @@ export default function SettingsPage() {
                 </p>
                 <p className="mb-2">
                   <strong className="text-foreground">Best Results:</strong> Clear audio with minimal background noise
+                </p>
+                <p className="mb-2">
+                  <strong className="text-foreground">Language Detection:</strong> Works best with recordings longer than 10 seconds
                 </p>
                 <p>
                   <strong className="text-foreground">Performance:</strong> Optimized for fast processing and smooth user experience

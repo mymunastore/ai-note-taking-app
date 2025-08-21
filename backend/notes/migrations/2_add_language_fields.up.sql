@@ -1,0 +1,3 @@
+ALTER TABLE notes 
+ADD COLUMN original_language TEXT,
+ADD COLUMN translated BOOLEAN DEFAULT FALSE;

@@ -128,10 +128,10 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
       const arrayBuffer = await audioBlob.arrayBuffer();
       const base64Audio = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
       
-      // Transcribe audio
+      // Transcribe audio with automatic language detection and translation
       toast({
         title: "Processing Recording",
-        description: "Transcribing audio...",
+        description: "Detecting language and transcribing audio...",
       });
       
       const transcribeResponse = await backend.ai.transcribe({ audioBase64: base64Audio });
@@ -139,11 +139,19 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
       if (!transcribeResponse.transcript.trim()) {
         throw new Error("No speech detected in recording");
       }
+
+      // Show language detection result
+      if (transcribeResponse.originalLanguage && transcribeResponse.originalLanguage !== "en") {
+        toast({
+          title: "Language Detected",
+          description: `Detected ${transcribeResponse.originalLanguage.toUpperCase()} and translated to English`,
+        });
+      }
       
       // Generate summary
       toast({
         title: "Processing Recording",
-        description: "Generating summary...",
+        description: "Generating AI summary...",
       });
       
       const summaryResponse = await backend.ai.summarize({ transcript: transcribeResponse.transcript });
@@ -154,6 +162,8 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
         transcript: transcribeResponse.transcript,
         summary: summaryResponse.summary,
         duration: recordingDuration,
+        originalLanguage: transcribeResponse.originalLanguage,
+        translated: transcribeResponse.translated,
       });
       
       toast({

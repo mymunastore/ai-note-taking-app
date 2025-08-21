@@ -4,6 +4,8 @@ export interface Note {
   transcript: string;
   summary: string;
   duration: number;
+  originalLanguage?: string;
+  translated?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -13,6 +15,8 @@ export interface CreateNoteRequest {
   transcript: string;
   summary: string;
   duration: number;
+  originalLanguage?: string;
+  translated?: boolean;
 }
 
 export interface UpdateNoteRequest {
@@ -39,6 +43,8 @@ export interface TranscribeRequest {
 
 export interface TranscribeResponse {
   transcript: string;
+  originalLanguage?: string;
+  translated?: boolean;
 }
 
 export interface SummarizeRequest {
@@ -47,4 +53,13 @@ export interface SummarizeRequest {
 
 export interface SummarizeResponse {
   summary: string;
+}
+
+export interface ChatRequest {
+  message: string;
+  context?: string;
+}
+
+export interface ChatResponse {
+  response: string;
 }

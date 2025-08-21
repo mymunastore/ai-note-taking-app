@@ -30,11 +30,11 @@ export const list = api<ListNotesParams, ListNotesResponse>(
       : `SELECT COUNT(*) as total FROM notes`;
 
     const notesQuery = search
-      ? `SELECT id, title, transcript, summary, duration, created_at, updated_at 
+      ? `SELECT id, title, transcript, summary, duration, original_language, translated, created_at, updated_at 
          FROM notes ${whereClause}
          ORDER BY created_at DESC 
          LIMIT $1 OFFSET $2`
-      : `SELECT id, title, transcript, summary, duration, created_at, updated_at 
+      : `SELECT id, title, transcript, summary, duration, original_language, translated, created_at, updated_at 
          FROM notes 
          ORDER BY created_at DESC 
          LIMIT $1 OFFSET $2`;
@@ -50,6 +50,8 @@ export const list = api<ListNotesParams, ListNotesResponse>(
             transcript: string;
             summary: string;
             duration: number;
+            original_language: string | null;
+            translated: boolean | null;
             created_at: Date;
             updated_at: Date;
           }>(notesQuery, limit, offset, searchParam!)
@@ -59,6 +61,8 @@ export const list = api<ListNotesParams, ListNotesResponse>(
             transcript: string;
             summary: string;
             duration: number;
+            original_language: string | null;
+            translated: boolean | null;
             created_at: Date;
             updated_at: Date;
           }>(notesQuery, limit, offset),
@@ -71,6 +75,8 @@ export const list = api<ListNotesParams, ListNotesResponse>(
       transcript: row.transcript,
       summary: row.summary,
       duration: row.duration,
+      originalLanguage: row.original_language || undefined,
+      translated: row.translated || undefined,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     }));
