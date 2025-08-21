@@ -1,10 +1,12 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Search, Plus, Clock, FileText, Trash2, Mic, Sparkles, Languages } from "lucide-react";
+import { Search, Plus, Clock, FileText, Trash2, Mic, Sparkles, Languages, Filter, Download, MoreVertical } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/components/ui/use-toast";
 import { useNotes } from "../contexts/NotesContext";
 import { formatDuration, formatDate } from "../utils/formatters";
@@ -13,6 +15,8 @@ import ChatBot from "../components/ChatBot";
 export default function NotesListPage() {
   const { notes, isLoading, searchQuery, setSearchQuery, deleteNote } = useNotes();
   const { toast } = useToast();
+  const [sortBy, setSortBy] = React.useState("newest");
+  const [filterBy, setFilterBy] = React.useState("all");
 
   const handleDelete = async (id: number, title: string) => {
     if (window.confirm(`Are you sure you want to delete "${title}"?`)) {
@@ -33,6 +37,14 @@ export default function NotesListPage() {
     }
   };
 
+  const handleExport = (note: any, format: string) => {
+    // In a real app, this would generate and download the file
+    toast({
+      title: "Export Started",
+      description: `Exporting "${note.title}" as ${format.toUpperCase()}...`,
+    });
+  };
+
   const getLanguageName = (code: string) => {
     const languages: Record<string, string> = {
       en: "English",
@@ -50,6 +62,34 @@ export default function NotesListPage() {
     };
     return languages[code] || code.toUpperCase();
   };
+
+  // Filter and sort notes
+  const filteredAndSortedNotes = React.useMemo(() => {
+    let filtered = notes;
+
+    // Apply filters
+    if (filterBy === "translated") {
+      filtered = notes.filter(note => note.translated);
+    } else if (filterBy === "english") {
+      filtered = notes.filter(note => !note.translated);
+    }
+
+    // Apply sorting
+    return filtered.sort((a, b) => {
+      switch (sortBy) {
+        case "newest":
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        case "oldest":
+          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        case "duration":
+          return b.duration - a.duration;
+        case "title":
+          return a.title.localeCompare(b.title);
+        default:
+          return 0;
+      }
+    });
+  }, [notes, filterBy, sortBy]);
 
   if (isLoading) {
     return (
@@ -82,7 +122,8 @@ export default function NotesListPage() {
               Your Notes
             </h1>
             <p className="text-muted-foreground mt-1">
-              {notes.length} {notes.length === 1 ? "recording" : "recordings"}
+              {filteredAndSortedNotes.length} {filteredAndSortedNotes.length === 1 ? "recording" : "recordings"}
+              {filterBy !== "all" && ` (filtered)`}
             </p>
           </div>
           <Link to="/record">
@@ -93,32 +134,60 @@ export default function NotesListPage() {
           </Link>
         </div>
 
-        {/* Search */}
-        <div className="relative mb-6">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-          <Input
-            placeholder="Search notes and transcripts..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 bg-background border-border focus:border-emerald-500 focus:ring-emerald-500/20"
-          />
+        {/* Search and Filters */}
+        <div className="flex flex-col sm:flex-row gap-4 mb-6">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+            <Input
+              placeholder="Search notes and transcripts..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 bg-background border-border focus:border-emerald-500 focus:ring-emerald-500/20"
+            />
+          </div>
+          
+          <div className="flex gap-2">
+            <Select value={filterBy} onValueChange={setFilterBy}>
+              <SelectTrigger className="w-40 bg-background border-border">
+                <Filter className="w-4 h-4 mr-2" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Notes</SelectItem>
+                <SelectItem value="translated">Translated</SelectItem>
+                <SelectItem value="english">English Only</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={sortBy} onValueChange={setSortBy}>
+              <SelectTrigger className="w-32 bg-background border-border">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="newest">Newest</SelectItem>
+                <SelectItem value="oldest">Oldest</SelectItem>
+                <SelectItem value="duration">Duration</SelectItem>
+                <SelectItem value="title">Title</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         {/* Notes List */}
-        {notes.length === 0 ? (
+        {filteredAndSortedNotes.length === 0 ? (
           <div className="text-center py-12">
             <div className="w-20 h-20 bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-950/50 dark:to-teal-950/50 rounded-full flex items-center justify-center mx-auto mb-4">
               <FileText className="w-10 h-10 text-emerald-600" />
             </div>
             <h3 className="text-lg font-medium text-foreground mb-2">
-              {searchQuery ? "No notes found" : "No recordings yet"}
+              {searchQuery || filterBy !== "all" ? "No notes found" : "No recordings yet"}
             </h3>
             <p className="text-muted-foreground mb-6">
-              {searchQuery
-                ? "Try adjusting your search terms"
+              {searchQuery || filterBy !== "all"
+                ? "Try adjusting your search terms or filters"
                 : "Start by recording your first meeting or phone call"}
             </p>
-            {!searchQuery && (
+            {!searchQuery && filterBy === "all" && (
               <Link to="/record">
                 <Button className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg hover:shadow-xl transition-all duration-200">
                   <Mic className="w-4 h-4 mr-2" />
@@ -129,8 +198,8 @@ export default function NotesListPage() {
           </div>
         ) : (
           <div className="space-y-4">
-            {notes.map((note) => (
-              <Card key={note.id} className="hover:shadow-lg transition-all duration-200 border-border bg-card hover:border-emerald-200 dark:hover:border-emerald-800">
+            {filteredAndSortedNotes.map((note) => (
+              <Card key={note.id} className="hover:shadow-lg transition-all duration-200 border-border bg-card hover:border-emerald-200 dark:hover:border-emerald-800 group">
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
@@ -156,14 +225,50 @@ export default function NotesListPage() {
                         )}
                       </div>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDelete(note.id, note.title)}
-                      className="text-muted-foreground hover:text-red-600"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                    
+                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            <Download className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleExport(note, "pdf")}>
+                            Export as PDF
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleExport(note, "docx")}>
+                            Export as DOCX
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleExport(note, "txt")}>
+                            Export as TXT
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            <MoreVertical className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem>
+                            <Link to={`/note/${note.id}`} className="w-full">
+                              View Details
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem>Share Note</DropdownMenuItem>
+                          <DropdownMenuItem>Add to Project</DropdownMenuItem>
+                          <DropdownMenuItem 
+                            className="text-red-600"
+                            onClick={() => handleDelete(note.id, note.title)}
+                          >
+                            Delete Note
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>

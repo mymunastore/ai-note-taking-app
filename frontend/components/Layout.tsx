@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Mic, FileText, Settings, Moon, Sun, Leaf } from "lucide-react";
+import { Mic, FileText, Settings, Moon, Sun, Leaf, FolderOpen, User, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useTheme } from "../contexts/ThemeContext";
@@ -14,8 +14,10 @@ export default function Layout({ children }: LayoutProps) {
   const { theme, toggleTheme } = useTheme();
 
   const navItems = [
-    { path: "/", icon: FileText, label: "Notes" },
+    { path: "/", icon: Home, label: "Dashboard" },
     { path: "/record", icon: Mic, label: "Record" },
+    { path: "/projects", icon: FolderOpen, label: "Projects" },
+    { path: "/profile", icon: User, label: "Profile" },
     { path: "/settings", icon: Settings, label: "Settings" },
   ];
 
@@ -24,12 +26,12 @@ export default function Layout({ children }: LayoutProps) {
       {/* Sidebar */}
       <div className="w-64 bg-card border-r border-border flex flex-col shadow-sm">
         <div className="p-6 border-b border-border">
-          <div className="flex items-center gap-3 mb-2">
+          <Link to="/" className="flex items-center gap-3 mb-2">
             <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center">
               <Leaf className="w-5 h-5 text-white" />
             </div>
-            <h1 className="text-xl font-semibold text-foreground">SCRIBE</h1>
-          </div>
+            <h1 className="text-xl font-semibold text-foreground">SCRIBE AI</h1>
+          </Link>
           <p className="text-sm text-muted-foreground">AI-powered note taker</p>
         </div>
         

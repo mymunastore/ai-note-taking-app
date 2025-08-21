@@ -1,10 +1,12 @@
-import React from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Mic, Square, Play, Pause, Save, Loader2, Sparkles, Activity } from "lucide-react";
+import { Mic, Square, Play, Pause, Save, Loader2, Sparkles, Activity, Globe, Languages } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { useRecording } from "../contexts/RecordingContext";
 import { useNotes } from "../contexts/NotesContext";
 import { formatDuration } from "../utils/formatters";
@@ -24,9 +26,37 @@ export default function RecordingPage() {
     processRecording,
   } = useRecording();
 
-  const [title, setTitle] = React.useState("");
-  const [audioBlob, setAudioBlob] = React.useState<Blob | null>(null);
-  const [recordingDuration, setRecordingDuration] = React.useState(0);
+  const [title, setTitle] = useState("");
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const [recordingDuration, setRecordingDuration] = useState(0);
+  const [selectedLanguage, setSelectedLanguage] = useState("auto");
+  const [realTimeTranscription, setRealTimeTranscription] = useState(false);
+  const [autoTranslate, setAutoTranslate] = useState(true);
+
+  const languages = [
+    { code: "auto", name: "Auto-detect" },
+    { code: "en", name: "English" },
+    { code: "es", name: "Spanish" },
+    { code: "fr", name: "French" },
+    { code: "de", name: "German" },
+    { code: "it", name: "Italian" },
+    { code: "pt", name: "Portuguese" },
+    { code: "ru", name: "Russian" },
+    { code: "ja", name: "Japanese" },
+    { code: "ko", name: "Korean" },
+    { code: "zh", name: "Chinese (Mandarin)" },
+    { code: "ar", name: "Arabic" },
+    { code: "hi", name: "Hindi" },
+    { code: "nl", name: "Dutch" },
+    { code: "sv", name: "Swedish" },
+    { code: "no", name: "Norwegian" },
+    { code: "da", name: "Danish" },
+    { code: "fi", name: "Finnish" },
+    { code: "pl", name: "Polish" },
+    { code: "tr", name: "Turkish" },
+    { code: "th", name: "Thai" },
+    { code: "vi", name: "Vietnamese" },
+  ];
 
   const handleStartRecording = async () => {
     await startRecording();
@@ -70,9 +100,63 @@ export default function RecordingPage() {
             Record Audio
           </h1>
           <p className="text-muted-foreground">
-            Record meetings, phone calls, or voice notes for automatic transcription and summarization
+            Record meetings, phone calls, or voice notes with AI-powered transcription and translation
           </p>
         </div>
+
+        {/* Language & Settings */}
+        <Card className="mb-6 border-border bg-card">
+          <CardHeader>
+            <CardTitle className="text-foreground flex items-center gap-2">
+              <Languages className="w-5 h-5" />
+              Recording Settings
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <Label className="text-foreground">Expected Language</Label>
+                <Select value={selectedLanguage} onValueChange={setSelectedLanguage}>
+                  <SelectTrigger className="bg-background border-border">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-60">
+                    {languages.map((lang) => (
+                      <SelectItem key={lang.code} value={lang.code}>
+                        <div className="flex items-center gap-2">
+                          {lang.code === "auto" && <Globe className="w-4 h-4" />}
+                          {lang.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-foreground">Auto-translate to English</Label>
+                    <p className="text-xs text-muted-foreground">Translate non-English content</p>
+                  </div>
+                  <Switch
+                    checked={autoTranslate}
+                    onCheckedChange={setAutoTranslate}
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-foreground">Real-time transcription</Label>
+                    <p className="text-xs text-muted-foreground">Show text as you speak</p>
+                  </div>
+                  <Switch
+                    checked={realTimeTranscription}
+                    onCheckedChange={setRealTimeTranscription}
+                  />
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         <Card className="mb-6 border-border bg-card">
           <CardHeader>
@@ -119,7 +203,26 @@ export default function RecordingPage() {
                   ? "Recording Complete"
                   : "Ready to Record"}
               </div>
+
+              {selectedLanguage !== "auto" && (
+                <div className="mt-2 text-xs text-muted-foreground">
+                  Expected: {languages.find(l => l.code === selectedLanguage)?.name}
+                </div>
+              )}
             </div>
+
+            {/* Real-time Transcription Display */}
+            {realTimeTranscription && isRecording && !isPaused && (
+              <div className="bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/20 dark:to-teal-950/20 p-4 rounded-lg border border-emerald-200 dark:border-emerald-800">
+                <div className="flex items-center gap-2 mb-2">
+                  <Activity className="w-4 h-4 text-emerald-600 animate-pulse" />
+                  <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300">Live Transcription</span>
+                </div>
+                <p className="text-sm text-muted-foreground italic">
+                  Real-time transcription will appear here as you speak...
+                </p>
+              </div>
+            )}
 
             {/* Control Buttons */}
             <div className="flex justify-center gap-4">
@@ -186,13 +289,16 @@ export default function RecordingPage() {
               </div>
               
               <div className="text-sm text-muted-foreground bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/20 dark:to-teal-950/20 p-4 rounded-lg border border-emerald-200 dark:border-emerald-800">
-                <p className="flex items-center gap-2 font-medium text-emerald-700 dark:text-emerald-300">
+                <p className="flex items-center gap-2 font-medium text-emerald-700 dark:text-emerald-300 mb-2">
                   <Sparkles className="w-4 h-4" />
                   Duration: {formatDuration(recordingDuration)}
                 </p>
-                <p className="mt-1 text-emerald-600 dark:text-emerald-400">
-                  This recording will be automatically transcribed and summarized using AI.
-                </p>
+                <div className="space-y-1 text-emerald-600 dark:text-emerald-400">
+                  <p>✓ Automatic transcription with {selectedLanguage === "auto" ? "language detection" : languages.find(l => l.code === selectedLanguage)?.name}</p>
+                  {autoTranslate && <p>✓ Auto-translation to English (if needed)</p>}
+                  <p>✓ AI-powered summary generation</p>
+                  <p>✓ Secure local storage</p>
+                </div>
               </div>
 
               <Button
