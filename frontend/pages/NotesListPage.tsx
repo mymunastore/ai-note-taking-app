@@ -20,6 +20,7 @@ import ExportDialog from "../components/ExportDialog";
 import SearchFilters from "../components/SearchFilters";
 import VoiceCommands from "../components/VoiceCommands";
 import KeyboardShortcuts from "../components/KeyboardShortcuts";
+import PerformanceMonitor from "../components/PerformanceMonitor";
 
 export default function NotesListPage() {
   const { notes, isLoading, searchQuery, setSearchQuery, deleteNote } = useNotes();
@@ -428,6 +429,7 @@ export default function NotesListPage() {
         </Tabs>
 
         <ChatBot context={allNotesContext} />
+        <PerformanceMonitor />
       </div>
     </div>
   );
