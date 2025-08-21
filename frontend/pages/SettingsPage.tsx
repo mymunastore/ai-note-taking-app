@@ -3,8 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Shield, Zap, Globe, Moon, Sun, Leaf, MessageCircle, Languages, Database, Cpu } from "lucide-react";
+import { Sparkles, Shield, Zap, Globe, Moon, Sun, Leaf, MessageCircle, Languages, Database, Cpu, Cloud } from "lucide-react";
 import { useTheme } from "../contexts/ThemeContext";
+import SaaSStackStatus from "../components/SaaSStackStatus";
 
 export default function SettingsPage() {
   const { theme, toggleTheme } = useTheme();
@@ -144,6 +145,8 @@ export default function SettingsPage() {
           </div>
 
           <div className="space-y-6">
+            <SaaSStackStatus />
+
             <Card className="border-border bg-card">
               <CardHeader>
                 <CardTitle className="text-foreground flex items-center gap-2">
@@ -215,6 +218,13 @@ export default function SettingsPage() {
                     Enabled
                   </Badge>
                 </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-foreground">SaaS Stack Integration</span>
+                  <Badge className="bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-800 border-blue-300 dark:from-blue-950/50 dark:to-indigo-950/50 dark:text-blue-300 dark:border-blue-700">
+                    <Cloud className="w-3 h-3 mr-1" />
+                    Enterprise
+                  </Badge>
+                </div>
               </CardContent>
             </Card>
 
@@ -238,6 +248,12 @@ export default function SettingsPage() {
                   </p>
                   <p className="mb-2 text-emerald-700 dark:text-emerald-300">
                     <strong>🛡️ Zero Retention:</strong> AI providers don't store your data - everything is processed and immediately discarded.
+                  </p>
+                  <p className="mb-2 text-emerald-700 dark:text-emerald-300">
+                    <strong>📧 Email Security:</strong> Transactional emails are sent via Resend with enterprise-grade delivery.
+                  </p>
+                  <p className="mb-2 text-emerald-700 dark:text-emerald-300">
+                    <strong>📊 Privacy-First Analytics:</strong> PostHog analytics with GDPR compliance and data sovereignty.
                   </p>
                   <p className="text-emerald-700 dark:text-emerald-300">
                     <strong>🌿 Optimized Performance:</strong> Intelligent caching and compression for faster processing and reduced bandwidth usage.

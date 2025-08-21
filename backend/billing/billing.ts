@@ -54,6 +54,11 @@ interface GetSubscriptionResponse {
   };
 }
 
+interface WebhookRequest {
+  body: string;
+  signature: string;
+}
+
 // Creates a Stripe checkout session for subscription.
 export const createCheckoutSession = api<CreateCheckoutSessionRequest, CreateCheckoutSessionResponse>(
   { auth: true, expose: true, method: "POST", path: "/billing/checkout" },
@@ -225,7 +230,7 @@ export const getSubscription = api<void, GetSubscriptionResponse>(
 );
 
 // Handles Stripe webhooks for subscription events.
-export const handleWebhook = api<{ body: string; signature: string }, void>(
+export const handleWebhook = api<WebhookRequest, void>(
   { expose: true, method: "POST", path: "/billing/webhook" },
   async (req) => {
     try {
@@ -297,6 +302,22 @@ async function handleCheckoutCompleted(session: any) {
       cancel_at_period_end = EXCLUDED.cancel_at_period_end,
       updated_at = NOW()
   `;
+
+  // Send notification email
+  try {
+    const notifications = await import('../notifications/resend');
+    await notifications.sendBillingNotification({
+      userEmail: session.customer_details?.email || '',
+      type: 'payment_success',
+      details: {
+        amount: (subscription.items.data[0].price.unit_amount / 100).toFixed(2),
+        plan: plan,
+        nextBillingDate: new Date(subscription.current_period_end * 1000).toLocaleDateString(),
+      },
+    });
+  } catch (error) {
+    console.error("Failed to send billing notification:", error);
+  }
 }
 
 async function handleSubscriptionUpdated(subscription: any) {
@@ -318,6 +339,23 @@ async function handleSubscriptionDeleted(subscription: any) {
       updated_at = NOW()
     WHERE stripe_subscription_id = ${subscription.id}
   `;
+
+  // Send cancellation notification
+  try {
+    const notifications = await import('../notifications/resend');
+    const stripe = require('stripe')(stripeSecretKey());
+    const customer = await stripe.customers.retrieve(subscription.customer);
+    
+    await notifications.sendBillingNotification({
+      userEmail: customer.email || '',
+      type: 'subscription_cancelled',
+      details: {
+        accessUntil: new Date(subscription.current_period_end * 1000).toLocaleDateString(),
+      },
+    });
+  } catch (error) {
+    console.error("Failed to send cancellation notification:", error);
+  }
 }
 
 async function handlePaymentSucceeded(invoice: any) {
@@ -341,5 +379,20 @@ async function handlePaymentFailed(invoice: any) {
         updated_at = NOW()
       WHERE stripe_subscription_id = ${invoice.subscription}
     `;
+
+    // Send payment failed notification
+    try {
+      const notifications = await import('../notifications/resend');
+      const stripe = require('stripe')(stripeSecretKey());
+      const customer = await stripe.customers.retrieve(invoice.customer);
+      
+      await notifications.sendBillingNotification({
+        userEmail: customer.email || '',
+        type: 'payment_failed',
+        details: {},
+      });
+    } catch (error) {
+      console.error("Failed to send payment failed notification:", error);
+    }
   }
 }

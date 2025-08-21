@@ -8,6 +8,14 @@ export const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:4000";
 // Stripe configuration
 export const stripePublishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || "";
 
+// PostHog configuration
+export const posthogKey = import.meta.env.VITE_POSTHOG_KEY || "";
+export const posthogHost = import.meta.env.VITE_POSTHOG_HOST || "https://app.posthog.com";
+
+// Supabase configuration
+export const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "";
+export const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
+
 // Feature flags
 export const enableWorkflows = import.meta.env.VITE_ENABLE_WORKFLOWS === "true";
 export const enableCohere = import.meta.env.VITE_ENABLE_COHERE === "true";
@@ -22,3 +30,8 @@ const isValidClerkKey = clerkPublishableKey &&
   clerkPublishableKey !== 'pk_test_your_clerk_key_here';
 
 export const isDemoMode = import.meta.env.VITE_DEMO_MODE === "true" || !isValidClerkKey;
+
+// SaaS Stack availability
+export const hasStripe = !!stripePublishableKey;
+export const hasPostHog = !!posthogKey;
+export const hasSupabase = !!(supabaseUrl && supabaseAnonKey);

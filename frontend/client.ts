@@ -34,9 +34,12 @@ const BROWSER = typeof globalThis === "object" && ("window" in globalThis);
  */
 export class Client {
     public readonly ai: ai.ServiceClient
+    public readonly analytics: analytics.ServiceClient
     public readonly billing: billing.ServiceClient
     public readonly notes: notes.ServiceClient
+    public readonly notifications: notifications.ServiceClient
     public readonly projects: projects.ServiceClient
+    public readonly supabase: supabase.ServiceClient
     public readonly workflows: workflows.ServiceClient
     private readonly options: ClientOptions
     private readonly target: string
@@ -53,9 +56,12 @@ export class Client {
         this.options = options ?? {}
         const base = new BaseClient(this.target, this.options)
         this.ai = new ai.ServiceClient(base)
+        this.analytics = new analytics.ServiceClient(base)
         this.billing = new billing.ServiceClient(base)
         this.notes = new notes.ServiceClient(base)
+        this.notifications = new notifications.ServiceClient(base)
         this.projects = new projects.ServiceClient(base)
+        this.supabase = new supabase.ServiceClient(base)
         this.workflows = new workflows.ServiceClient(base)
     }
 
@@ -307,6 +313,73 @@ export namespace ai {
     }
 }
 
+/**
+ * Import the endpoint handlers to derive the types for the client.
+ */
+import {
+    capturePageView as api_analytics_posthog_capturePageView,
+    getInsights as api_analytics_posthog_getInsights,
+    identifyUser as api_analytics_posthog_identifyUser,
+    trackEvent as api_analytics_posthog_trackEvent
+} from "~backend/analytics/posthog";
+
+export namespace analytics {
+
+    export class ServiceClient {
+        private baseClient: BaseClient
+
+        constructor(baseClient: BaseClient) {
+            this.baseClient = baseClient
+            this.capturePageView = this.capturePageView.bind(this)
+            this.getInsights = this.getInsights.bind(this)
+            this.identifyUser = this.identifyUser.bind(this)
+            this.trackEvent = this.trackEvent.bind(this)
+        }
+
+        /**
+         * Captures page view events for analytics.
+         */
+        public async capturePageView(params: RequestType<typeof api_analytics_posthog_capturePageView>): Promise<ResponseType<typeof api_analytics_posthog_capturePageView>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/analytics/pageview`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_analytics_posthog_capturePageView>
+        }
+
+        /**
+         * Gets analytics insights from PostHog.
+         */
+        public async getInsights(params: RequestType<typeof api_analytics_posthog_getInsights>): Promise<ResponseType<typeof api_analytics_posthog_getInsights>> {
+            // Convert our params into the objects we need for the request
+            const query = makeRecord<string, string | string[]>({
+                events:    params.events?.map((v) => v),
+                timeframe: params.timeframe === undefined ? undefined : String(params.timeframe),
+            })
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/analytics/insights`, {query, method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_analytics_posthog_getInsights>
+        }
+
+        /**
+         * Identifies a user with properties for analytics.
+         */
+        public async identifyUser(params: RequestType<typeof api_analytics_posthog_identifyUser>): Promise<ResponseType<typeof api_analytics_posthog_identifyUser>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/analytics/identify`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_analytics_posthog_identifyUser>
+        }
+
+        /**
+         * Tracks custom events for analytics.
+         */
+        public async trackEvent(params: RequestType<typeof api_analytics_posthog_trackEvent>): Promise<ResponseType<typeof api_analytics_posthog_trackEvent>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/analytics/track`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_analytics_posthog_trackEvent>
+        }
+    }
+}
+
 
 export namespace auth {
 }
@@ -501,6 +574,67 @@ export namespace notes {
 /**
  * Import the endpoint handlers to derive the types for the client.
  */
+import {
+    sendBillingNotification as api_notifications_resend_sendBillingNotification,
+    sendEmail as api_notifications_resend_sendEmail,
+    sendRecordingNotification as api_notifications_resend_sendRecordingNotification,
+    sendWelcomeEmail as api_notifications_resend_sendWelcomeEmail
+} from "~backend/notifications/resend";
+
+export namespace notifications {
+
+    export class ServiceClient {
+        private baseClient: BaseClient
+
+        constructor(baseClient: BaseClient) {
+            this.baseClient = baseClient
+            this.sendBillingNotification = this.sendBillingNotification.bind(this)
+            this.sendEmail = this.sendEmail.bind(this)
+            this.sendRecordingNotification = this.sendRecordingNotification.bind(this)
+            this.sendWelcomeEmail = this.sendWelcomeEmail.bind(this)
+        }
+
+        /**
+         * Sends billing-related notification emails.
+         */
+        public async sendBillingNotification(params: RequestType<typeof api_notifications_resend_sendBillingNotification>): Promise<ResponseType<typeof api_notifications_resend_sendBillingNotification>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/notifications/billing`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_notifications_resend_sendBillingNotification>
+        }
+
+        /**
+         * Sends a custom email using Resend.
+         */
+        public async sendEmail(params: RequestType<typeof api_notifications_resend_sendEmail>): Promise<ResponseType<typeof api_notifications_resend_sendEmail>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/notifications/email`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_notifications_resend_sendEmail>
+        }
+
+        /**
+         * Sends a notification email when a recording is processed.
+         */
+        public async sendRecordingNotification(params: RequestType<typeof api_notifications_resend_sendRecordingNotification>): Promise<ResponseType<typeof api_notifications_resend_sendRecordingNotification>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/notifications/recording`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_notifications_resend_sendRecordingNotification>
+        }
+
+        /**
+         * Sends a welcome email to new users.
+         */
+        public async sendWelcomeEmail(params: RequestType<typeof api_notifications_resend_sendWelcomeEmail>): Promise<ResponseType<typeof api_notifications_resend_sendWelcomeEmail>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/notifications/welcome`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_notifications_resend_sendWelcomeEmail>
+        }
+    }
+}
+
+/**
+ * Import the endpoint handlers to derive the types for the client.
+ */
 import { createProject as api_projects_create_createProject } from "~backend/projects/create";
 import { deleteProject as api_projects_delete_deleteProject } from "~backend/projects/delete";
 import { getProject as api_projects_get_getProject } from "~backend/projects/get";
@@ -568,6 +702,90 @@ export namespace projects {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/projects/${encodeURIComponent(params.id)}`, {method: "PUT", body: JSON.stringify(body)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_projects_update_updateProject>
+        }
+    }
+}
+
+/**
+ * Import the endpoint handlers to derive the types for the client.
+ */
+import {
+    getAnalytics as api_supabase_analytics_getAnalytics,
+    getUserActivities as api_supabase_analytics_getUserActivities,
+    getUserPreferences as api_supabase_analytics_getUserPreferences,
+    logActivity as api_supabase_analytics_logActivity,
+    updateUserPreferences as api_supabase_analytics_updateUserPreferences
+} from "~backend/supabase/analytics";
+
+export namespace supabase {
+
+    export class ServiceClient {
+        private baseClient: BaseClient
+
+        constructor(baseClient: BaseClient) {
+            this.baseClient = baseClient
+            this.getAnalytics = this.getAnalytics.bind(this)
+            this.getUserActivities = this.getUserActivities.bind(this)
+            this.getUserPreferences = this.getUserPreferences.bind(this)
+            this.logActivity = this.logActivity.bind(this)
+            this.updateUserPreferences = this.updateUserPreferences.bind(this)
+        }
+
+        /**
+         * Gets analytics data from Supabase.
+         */
+        public async getAnalytics(params: RequestType<typeof api_supabase_analytics_getAnalytics>): Promise<ResponseType<typeof api_supabase_analytics_getAnalytics>> {
+            // Convert our params into the objects we need for the request
+            const query = makeRecord<string, string | string[]>({
+                timeframe: params.timeframe === undefined ? undefined : String(params.timeframe),
+            })
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/supabase/analytics`, {query, method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_supabase_analytics_getAnalytics>
+        }
+
+        /**
+         * Gets user activities from Supabase.
+         */
+        public async getUserActivities(params: RequestType<typeof api_supabase_analytics_getUserActivities>): Promise<ResponseType<typeof api_supabase_analytics_getUserActivities>> {
+            // Convert our params into the objects we need for the request
+            const query = makeRecord<string, string | string[]>({
+                activityType: params.activityType,
+                limit:        params.limit === undefined ? undefined : String(params.limit),
+                offset:       params.offset === undefined ? undefined : String(params.offset),
+            })
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/supabase/activities`, {query, method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_supabase_analytics_getUserActivities>
+        }
+
+        /**
+         * Gets user preferences from Supabase.
+         */
+        public async getUserPreferences(): Promise<ResponseType<typeof api_supabase_analytics_getUserPreferences>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/supabase/preferences`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_supabase_analytics_getUserPreferences>
+        }
+
+        /**
+         * Logs user activity to Supabase for analytics.
+         */
+        public async logActivity(params: RequestType<typeof api_supabase_analytics_logActivity>): Promise<ResponseType<typeof api_supabase_analytics_logActivity>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/supabase/activity`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_supabase_analytics_logActivity>
+        }
+
+        /**
+         * Updates user preferences in Supabase.
+         */
+        public async updateUserPreferences(params: RequestType<typeof api_supabase_analytics_updateUserPreferences>): Promise<ResponseType<typeof api_supabase_analytics_updateUserPreferences>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/supabase/preferences`, {method: "PUT", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_supabase_analytics_updateUserPreferences>
         }
     }
 }

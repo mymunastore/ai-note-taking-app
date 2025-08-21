@@ -10,6 +10,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/components/ui/use-toast";
 import { useNotes } from "../contexts/NotesContext";
+import { useAnalytics } from "../contexts/AnalyticsContext";
+import { usePageTracking } from "../hooks/usePageTracking";
 import { formatDuration, formatDate } from "../utils/formatters";
 import ChatBot from "../components/ChatBot";
 import AdvancedAnalytics from "../components/AdvancedAnalytics";
@@ -21,16 +23,21 @@ import KeyboardShortcuts from "../components/KeyboardShortcuts";
 
 export default function NotesListPage() {
   const { notes, isLoading, searchQuery, setSearchQuery, deleteNote } = useNotes();
+  const { trackEvent } = useAnalytics();
   const { toast } = useToast();
   const [selectedNotes, setSelectedNotes] = useState<number[]>([]);
   const [searchFilters, setSearchFilters] = useState<any>({});
   const [activeTab, setActiveTab] = useState("notes");
+
+  // Track page view
+  usePageTracking();
 
   const handleDelete = async (id: number, title: string) => {
     if (window.confirm(`Are you sure you want to delete "${title}"?`)) {
       try {
         await deleteNote(id);
         setSelectedNotes(prev => prev.filter(noteId => noteId !== id));
+        trackEvent("note_deleted", { noteId: id, title });
         toast({
           title: "Note Deleted",
           description: "The note has been successfully deleted.",
@@ -52,6 +59,7 @@ export default function NotesListPage() {
     if (window.confirm(`Are you sure you want to delete ${selectedNotes.length} selected notes?`)) {
       try {
         await Promise.all(selectedNotes.map(id => deleteNote(id)));
+        trackEvent("notes_bulk_deleted", { count: selectedNotes.length });
         setSelectedNotes([]);
         toast({
           title: "Notes Deleted",
@@ -146,6 +154,12 @@ export default function NotesListPage() {
     return [...new Set(allLanguages)].sort();
   }, [notes]);
 
+  // Track tab changes
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    trackEvent("dashboard_tab_changed", { tab });
+  };
+
   if (isLoading) {
     return (
       <div className="p-6">
@@ -201,8 +215,10 @@ export default function NotesListPage() {
                 </Button>
               </>
             )}
-            <Link to="/record">
-              <Button className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg hover:shadow-xl transition-all duration-200">
+            <Link to="/record" onClick={() => trackEvent("new_recording_clicked", { source: "dashboard" })}>
+              <Button 
+                className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
+              >
                 <Plus className="w-4 h-4 mr-2" />
                 New Recording
               </Button>
@@ -210,7 +226,7 @@ export default function NotesListPage() {
           </div>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="notes" className="flex items-center gap-2">
               <FileText className="w-4 h-4" />

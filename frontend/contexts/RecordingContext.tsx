@@ -1,5 +1,6 @@
 import React, { createContext, useContext, ReactNode, useRef, useCallback, useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
+import { useAnalytics } from "./AnalyticsContext";
 import backend from "~backend/client";
 
 type PermissionStatus = 'prompt' | 'granted' | 'denied';
@@ -40,6 +41,7 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
   const microphoneStreamRef = useRef<MediaStream | null>(null);
   
   const { toast } = useToast();
+  const { trackEvent } = useAnalytics();
 
   const checkPermission = useCallback(async () => {
     if (!navigator.permissions) {
@@ -134,6 +136,11 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
 
   const startRecording = useCallback(async () => {
     try {
+      // Track recording start
+      trackEvent("recording_started", {
+        timestamp: new Date().toISOString(),
+      });
+
       // Ensure we have microphone access
       let stream = microphoneStreamRef.current;
       
@@ -233,7 +240,7 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
         variant: "destructive",
       });
     }
-  }, [isPaused, toast, requestMicrophoneAccess]);
+  }, [isPaused, toast, requestMicrophoneAccess, trackEvent]);
 
   const pauseRecording = useCallback(() => {
     if (mediaRecorderRef.current && isRecording && !isPaused) {
@@ -241,6 +248,10 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
         mediaRecorderRef.current.pause();
         setIsPaused(true);
         pausedTimeRef.current += Date.now() - startTimeRef.current;
+        
+        trackEvent("recording_paused", {
+          duration: duration,
+        });
         
         toast({
           title: "⏸️ Recording Paused",
@@ -255,7 +266,7 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
         });
       }
     }
-  }, [isRecording, isPaused, toast]);
+  }, [isRecording, isPaused, toast, trackEvent, duration]);
 
   const resumeRecording = useCallback(() => {
     if (mediaRecorderRef.current && isRecording && isPaused) {
@@ -263,6 +274,10 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
         mediaRecorderRef.current.resume();
         setIsPaused(false);
         startTimeRef.current = Date.now();
+        
+        trackEvent("recording_resumed", {
+          duration: duration,
+        });
         
         toast({
           title: "▶️ Recording Resumed",
@@ -277,7 +292,7 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
         });
       }
     }
-  }, [isRecording, isPaused, toast]);
+  }, [isRecording, isPaused, toast, trackEvent, duration]);
 
   const stopRecording = useCallback(async (): Promise<{ audioBlob: Blob; duration: number } | null> => {
     return new Promise((resolve) => {
@@ -315,6 +330,11 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
             intervalRef.current = null;
           }
           
+          trackEvent("recording_stopped", {
+            duration: finalDuration,
+            fileSize: audioBlob.size,
+          });
+          
           toast({
             title: "✅ Recording Complete",
             description: `Captured ${Math.floor(finalDuration / 60)}:${(finalDuration % 60).toString().padStart(2, '0')} of audio. Ready for AI processing.`,
@@ -339,12 +359,19 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
         resolve(null);
       }
     });
-  }, [isRecording, duration, toast]);
+  }, [isRecording, duration, toast, trackEvent]);
 
   const processRecording = useCallback(async (audioBlob: Blob, recordingDuration: number, title: string, tags?: string[]) => {
     setIsProcessing(true);
     
     try {
+      trackEvent("recording_processing_started", {
+        duration: recordingDuration,
+        fileSize: audioBlob.size,
+        title: title,
+        tagCount: tags?.length || 0,
+      });
+
       if (!audioBlob || audioBlob.size === 0) {
         throw new Error("Invalid audio recording. Please try recording again.");
       }
@@ -432,7 +459,15 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
         throw new Error("Invalid note data. Please try again.");
       }
 
-      await backend.notes.create(noteData);
+      const createdNote = await backend.notes.create(noteData);
+      
+      trackEvent("recording_processing_completed", {
+        noteId: createdNote.id,
+        duration: recordingDuration,
+        hasTranslation: !!transcribeResponse.translated,
+        language: transcribeResponse.originalLanguage,
+        wordCount: transcribeResponse.transcript.split(' ').length,
+      });
       
       toast({
         title: "✅ Processing Complete!",
@@ -441,6 +476,11 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
       
     } catch (error) {
       console.error("Failed to process recording:", error);
+      
+      trackEvent("recording_processing_failed", {
+        duration: recordingDuration,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
       
       let errorMessage = "Processing failed. Please check your internet connection and try again.";
       if (error instanceof Error) {
@@ -455,7 +495,7 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
     } finally {
       setIsProcessing(false);
     }
-  }, [toast]);
+  }, [toast, trackEvent]);
 
   // Cleanup on unmount
   useEffect(() => {

@@ -2,6 +2,7 @@ import React, { createContext, useContext, ReactNode } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import backend from "~backend/client";
 import type { Note, CreateNoteRequest, UpdateNoteRequest } from "~backend/notes/types";
+import { useAnalytics } from "./AnalyticsContext";
 
 interface NotesContextType {
   notes: Note[];
@@ -27,6 +28,7 @@ export function NotesProvider({ children }: NotesProviderProps) {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [selectedTags, setSelectedTags] = React.useState<string[]>([]);
   const queryClient = useQueryClient();
+  const { trackEvent } = useAnalytics();
 
   const {
     data: notesData,
@@ -39,6 +41,12 @@ export function NotesProvider({ children }: NotesProviderProps) {
       const params: any = {};
       if (searchQuery) params.search = searchQuery;
       if (selectedTags.length > 0) params.tags = selectedTags.join(",");
+      
+      // Track search events
+      if (searchQuery) {
+        trackEvent("notes_searched", { query: searchQuery, tags: selectedTags });
+      }
+      
       // @ts-expect-error generated client method
       return backend.notes.listNotes(params);
     },
@@ -47,21 +55,34 @@ export function NotesProvider({ children }: NotesProviderProps) {
   const createNoteMutation = useMutation({
     // @ts-expect-error generated client method
     mutationFn: (note: CreateNoteRequest) => backend.notes.createNote(note),
-    onSuccess: () => {
+    onSuccess: (newNote) => {
       queryClient.invalidateQueries({ queryKey: ["notes"] });
+      trackEvent("note_created", {
+        noteId: newNote.id,
+        duration: newNote.duration,
+        hasTranslation: !!newNote.translated,
+        language: newNote.originalLanguage,
+        tagCount: newNote.tags?.length || 0,
+      });
     },
   });
 
   const updateNoteMutation = useMutation({
     // @ts-expect-error generated client method
     mutationFn: (note: UpdateNoteRequest) => backend.notes.updateNote(note),
-    onSuccess: () => {
+    onSuccess: (updatedNote) => {
       queryClient.invalidateQueries({ queryKey: ["notes"] });
+      trackEvent("note_updated", {
+        noteId: updatedNote.id,
+      });
     },
   });
 
   const deleteNoteMutation = useMutation({
-    mutationFn: (id: number) => backend.notes.deleteNote({ id }),
+    mutationFn: (id: number) => {
+      trackEvent("note_deleted", { noteId: id });
+      return backend.notes.deleteNote({ id });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notes"] });
     },
