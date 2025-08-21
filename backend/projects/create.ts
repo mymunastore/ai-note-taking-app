@@ -1,4 +1,4 @@
-import { api } from "encore.dev/api";
+import { api, APIError } from "encore.dev/api";
 import { projectsDB } from "./db";
 import type { CreateProjectRequest, Project } from "./types";
 
@@ -6,20 +6,30 @@ import type { CreateProjectRequest, Project } from "./types";
 export const create = api<CreateProjectRequest, Project>(
   { expose: true, method: "POST", path: "/projects" },
   async (req) => {
-    const row = await projectsDB.queryRow<Project>`
+    if (!req.name || !req.name.trim()) {
+      throw APIError.invalidArgument("name is required");
+    }
+
+    const row = await projectsDB.queryRow<{
+      id: number;
+      name: string;
+      description: string | null;
+      created_at: Date;
+      updated_at: Date;
+    }>`
       INSERT INTO projects (name, description)
-      VALUES (${req.name}, ${req.description || null})
+      VALUES (${req.name.trim()}, ${req.description || null})
       RETURNING id, name, description, created_at, updated_at
     `;
 
     if (!row) {
-      throw new Error("Failed to create project");
+      throw APIError.internal("Failed to create project");
     }
 
     return {
       id: row.id,
       name: row.name,
-      description: row.description,
+      description: row.description || undefined,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };

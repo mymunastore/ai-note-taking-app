@@ -10,7 +10,13 @@ interface GetProjectParams {
 export const get = api<GetProjectParams, Project>(
   { expose: true, method: "GET", path: "/projects/:id" },
   async (params) => {
-    const row = await projectsDB.queryRow<Project>`
+    const row = await projectsDB.queryRow<{
+      id: number;
+      name: string;
+      description: string | null;
+      created_at: Date;
+      updated_at: Date;
+    }>`
       SELECT id, name, description, created_at, updated_at
       FROM projects
       WHERE id = ${params.id}
@@ -23,7 +29,7 @@ export const get = api<GetProjectParams, Project>(
     return {
       id: row.id,
       name: row.name,
-      description: row.description,
+      description: row.description || undefined,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };

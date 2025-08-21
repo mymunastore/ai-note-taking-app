@@ -1,5 +1,6 @@
 import { api, APIError } from "encore.dev/api";
 import { secret } from "encore.dev/config";
+import { aiDB } from "./db";
 
 const openAIKey = secret("OpenAIKey");
 
@@ -77,30 +78,108 @@ interface SmartTemplateResponse {
   };
 }
 
-// In-memory storage for demo (in production, use database)
-const workflows: Map<string, Workflow> = new Map();
+type DBWorkflowRow = {
+  id: number;
+  name: string;
+  description: string | null;
+  enabled: boolean;
+  execution_count: number;
+  last_triggered: Date | null;
+  created_at: Date;
+  updated_at: Date;
+};
+
+type DBTriggerRow = {
+  id: number;
+  workflow_id: number;
+  type: string;
+  condition: string;
+  value_text: string | null;
+  value_number: number | null;
+};
+
+type DBActionRow = {
+  id: number;
+  workflow_id: number;
+  type: string;
+  config: any;
+};
 
 // Creates a new automated workflow with triggers and actions.
 export const createWorkflow = api<CreateWorkflowRequest, Workflow>(
   { expose: true, method: "POST", path: "/ai/workflows" },
   async (req) => {
     try {
-      const workflow: Workflow = {
-        id: `workflow_${Date.now()}`,
-        name: req.name,
-        description: req.description,
-        triggers: req.triggers,
-        actions: req.actions,
-        enabled: req.enabled,
-        created_at: new Date(),
-        execution_count: 0
-      };
+      if (!req.name?.trim()) {
+        throw APIError.invalidArgument("name is required");
+      }
+      if (!Array.isArray(req.triggers) || req.triggers.length === 0) {
+        throw APIError.invalidArgument("at least one trigger is required");
+      }
+      if (!Array.isArray(req.actions) || req.actions.length === 0) {
+        throw APIError.invalidArgument("at least one action is required");
+      }
 
-      workflows.set(workflow.id, workflow);
-      return workflow;
+      const tx = await aiDB.begin();
+      try {
+        const wf = await tx.rawQueryRow<DBWorkflowRow>(
+          `INSERT INTO workflows (name, description, enabled)
+           VALUES ($1, $2, $3)
+           RETURNING id, name, description, enabled, execution_count, last_triggered, created_at, updated_at`,
+          req.name.trim(),
+          req.description || null,
+          !!req.enabled
+        );
+        if (!wf) {
+          throw APIError.internal("failed to create workflow");
+        }
 
+        // Insert triggers
+        for (const t of req.triggers) {
+          const valueText = typeof t.value === "string" ? t.value : null;
+          const valueNumber = typeof t.value === "number" ? t.value : null;
+          await tx.rawExec(
+            `INSERT INTO workflow_triggers (workflow_id, type, condition, value_text, value_number)
+             VALUES ($1, $2, $3, $4, $5)`,
+            wf.id,
+            t.type,
+            t.condition,
+            valueText,
+            valueNumber
+          );
+        }
+
+        // Insert actions
+        for (const a of req.actions) {
+          await tx.rawExec(
+            `INSERT INTO workflow_actions (workflow_id, type, config)
+             VALUES ($1, $2, $3)`,
+            wf.id,
+            a.type,
+            a.config || {}
+          );
+        }
+
+        await tx.commit();
+
+        return {
+          id: `workflow_${wf.id}`,
+          name: wf.name,
+          description: wf.description || "",
+          enabled: wf.enabled,
+          created_at: wf.created_at,
+          last_triggered: wf.last_triggered || undefined,
+          execution_count: wf.execution_count,
+          triggers: req.triggers,
+          actions: req.actions,
+        };
+      } catch (err) {
+        await tx.rollback();
+        throw err;
+      }
     } catch (error) {
       console.error("Create workflow error:", error);
+      if (error instanceof APIError) throw error;
       throw APIError.internal("Failed to create workflow");
     }
   }
@@ -111,54 +190,62 @@ export const executeWorkflows = api<ExecuteWorkflowRequest, WorkflowExecutionRes
   { expose: true, method: "POST", path: "/ai/workflows/execute" },
   async (req) => {
     try {
-      const triggeredWorkflows: string[] = [];
       const actionsExecuted: Array<{
         action_type: string;
         success: boolean;
         result?: any;
         error?: string;
       }> = [];
+      const triggeredWorkflowNames: string[] = [];
 
-      // Check all enabled workflows
-      for (const [workflowId, workflow] of workflows) {
-        if (!workflow.enabled) continue;
+      // If a specific workflowId is provided in format workflow_<id>, only use that.
+      let workflowFilterId: number | null = null;
+      if (req.workflowId && req.workflowId.startsWith("workflow_")) {
+        const idNum = parseInt(req.workflowId.replace("workflow_", ""), 10);
+        if (!Number.isNaN(idNum)) workflowFilterId = idNum;
+      }
 
-        const shouldTrigger = await evaluateWorkflowTriggers(workflow.triggers, req.context);
-        
-        if (shouldTrigger) {
-          triggeredWorkflows.push(workflow.name);
-          
-          // Execute workflow actions
-          for (const action of workflow.actions) {
-            try {
-              const result = await executeWorkflowAction(action, req.context);
-              actionsExecuted.push({
-                action_type: action.type,
-                success: true,
-                result
-              });
-            } catch (error) {
-              actionsExecuted.push({
-                action_type: action.type,
-                success: false,
-                error: error instanceof Error ? error.message : "Unknown error"
-              });
-            }
+      const workflows = await loadWorkflows(workflowFilterId);
+
+      for (const wf of workflows) {
+        if (!wf.enabled) continue;
+
+        const shouldTrigger = await evaluateWorkflowTriggers(wf.triggers, req.context);
+        if (!shouldTrigger) continue;
+
+        triggeredWorkflowNames.push(wf.name);
+
+        for (const action of wf.actions) {
+          try {
+            const result = await executeWorkflowAction(action, req.context);
+            actionsExecuted.push({
+              action_type: action.type,
+              success: true,
+              result,
+            });
+          } catch (err) {
+            actionsExecuted.push({
+              action_type: action.type,
+              success: false,
+              error: err instanceof Error ? err.message : "Unknown error",
+            });
           }
-
-          // Update workflow execution count
-          workflow.execution_count++;
-          workflow.last_triggered = new Date();
-          workflows.set(workflowId, workflow);
         }
+
+        // Update execution_count and last_triggered
+        await aiDB.rawExec(
+          `UPDATE workflows
+           SET execution_count = execution_count + 1, last_triggered = NOW(), updated_at = NOW()
+           WHERE id = $1`,
+          parseInt(wf.id.replace("workflow_", ""), 10)
+        );
       }
 
       return {
         success: true,
-        triggered_workflows: triggeredWorkflows,
-        actions_executed: actionsExecuted
+        triggered_workflows: triggeredWorkflowNames,
+        actions_executed: actionsExecuted,
       };
-
     } catch (error) {
       console.error("Execute workflows error:", error);
       throw APIError.internal("Failed to execute workflows");
@@ -173,26 +260,31 @@ export const generateSmartTemplate = api<SmartTemplateRequest, SmartTemplateResp
     try {
       const templates = {
         email: {
-          system: "You are an expert at writing professional emails based on meeting content. Create clear, actionable emails that summarize key points and next steps.",
-          prompt: `Generate a professional email based on this meeting content. Include a clear subject line and well-structured body.`
+          system:
+            "You are an expert at writing professional emails based on meeting content. Create clear, actionable emails that summarize key points and next steps.",
+          prompt: `Generate a professional email based on this meeting content. Include a clear subject line and well-structured body.`,
         },
         summary: {
-          system: "You are an expert at creating executive summaries. Create concise, high-level summaries that highlight the most important information for leadership.",
-          prompt: `Create an executive summary that captures the key decisions, outcomes, and next steps from this meeting.`
+          system:
+            "You are an expert at creating executive summaries. Create concise, high-level summaries that highlight the most important information for leadership.",
+          prompt: `Create an executive summary that captures the key decisions, outcomes, and next steps from this meeting.`,
         },
         action_plan: {
-          system: "You are an expert project manager. Create detailed action plans with clear tasks, owners, and timelines.",
-          prompt: `Generate a comprehensive action plan based on the decisions and commitments made in this meeting.`
+          system:
+            "You are an expert project manager. Create detailed action plans with clear tasks, owners, and timelines.",
+          prompt: `Generate a comprehensive action plan based on the decisions and commitments made in this meeting.`,
         },
         follow_up: {
-          system: "You are an expert at creating follow-up communications. Generate messages that ensure accountability and progress tracking.",
-          prompt: `Create a follow-up message that tracks progress on action items and maintains momentum from the meeting.`
+          system:
+            "You are an expert at creating follow-up communications. Generate messages that ensure accountability and progress tracking.",
+          prompt: `Create a follow-up message that tracks progress on action items and maintains momentum from the meeting.`,
         },
         report: {
-          system: "You are an expert at creating detailed reports. Generate comprehensive reports that document all aspects of the meeting.",
-          prompt: `Create a detailed meeting report that documents all discussions, decisions, and outcomes.`
-        }
-      };
+          system:
+            "You are an expert at creating detailed reports. Generate comprehensive reports that document all aspects of the meeting.",
+          prompt: `Create a detailed meeting report that documents all discussions, decisions, and outcomes.`,
+        },
+      } as const;
 
       const template = templates[req.type];
       if (!template) {
@@ -203,30 +295,32 @@ export const generateSmartTemplate = api<SmartTemplateRequest, SmartTemplateResp
         professional: "Use a professional, formal tone appropriate for business communications.",
         casual: "Use a casual, friendly tone while maintaining professionalism.",
         urgent: "Use an urgent tone that conveys importance and need for quick action.",
-        friendly: "Use a warm, friendly tone that builds rapport and collaboration."
-      };
+        friendly: "Use a warm, friendly tone that builds rapport and collaboration.",
+      } as const;
 
       const lengthInstructions = {
         brief: "Keep the content concise and to the point, focusing only on essential information.",
         detailed: "Provide comprehensive details while maintaining clarity and structure.",
-        comprehensive: "Include all relevant information with thorough explanations and context."
-      };
+        comprehensive: "Include all relevant information with thorough explanations and context.",
+      } as const;
 
       const response = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${openAIKey()}`,
+          Authorization: `Bearer ${openAIKey()}`,
         },
         body: JSON.stringify({
           model: "gpt-4o",
           messages: [
-            { 
-              role: "system", 
-              content: `${template.system} ${toneInstructions[req.tone || "professional"]} ${lengthInstructions[req.length || "detailed"]}` 
+            {
+              role: "system",
+              content: `${template.system} ${toneInstructions[req.tone || "professional"]} ${
+                lengthInstructions[req.length || "detailed"]
+              }`,
             },
-            { 
-              role: "user", 
+            {
+              role: "user",
               content: `${template.prompt}
 
               Meeting Context:
@@ -239,8 +333,8 @@ export const generateSmartTemplate = api<SmartTemplateRequest, SmartTemplateResp
               
               ${req.context.custom_instructions ? `Additional Instructions: ${req.context.custom_instructions}` : ""}
               
-              ${req.type === "email" ? "Format as: Subject: [subject line]\n\n[email body]" : ""}` 
-            }
+              ${req.type === "email" ? "Format as: Subject: [subject line]\n\n[email body]" : ""}`,
+            },
           ],
           temperature: 0.3,
           max_tokens: 2000,
@@ -253,14 +347,13 @@ export const generateSmartTemplate = api<SmartTemplateRequest, SmartTemplateResp
 
       const result = await response.json();
       const content = result.choices[0]?.message?.content || "";
-      
+
       let subject: string | undefined;
       let body = content;
 
-      // Extract subject line for emails
       if (req.type === "email" && content.includes("Subject:")) {
         const lines = content.split("\n");
-        const subjectLine = lines.find(line => line.startsWith("Subject:"));
+        const subjectLine = lines.find((line: string) => line.startsWith("Subject:"));
         if (subjectLine) {
           subject = subjectLine.replace("Subject:", "").trim();
           body = lines.slice(lines.indexOf(subjectLine) + 1).join("\n").trim();
@@ -276,10 +369,9 @@ export const generateSmartTemplate = api<SmartTemplateRequest, SmartTemplateResp
         metadata: {
           word_count: wordCount,
           estimated_reading_time: estimatedReadingTime,
-          tone_analysis: req.tone || "professional"
-        }
+          tone_analysis: req.tone || "professional",
+        },
       };
-
     } catch (error) {
       console.error("Generate smart template error:", error);
       throw APIError.internal("Failed to generate smart template");
@@ -291,11 +383,70 @@ export const generateSmartTemplate = api<SmartTemplateRequest, SmartTemplateResp
 export const listWorkflows = api<void, { workflows: Workflow[] }>(
   { expose: true, method: "GET", path: "/ai/workflows" },
   async () => {
-    return {
-      workflows: Array.from(workflows.values())
-    };
+    const workflows = await loadWorkflows(null);
+    return { workflows };
   }
 );
+
+async function loadWorkflows(filterId: number | null): Promise<Workflow[]> {
+  const wfRows = await aiDB.rawQueryAll<DBWorkflowRow>(
+    `SELECT id, name, description, enabled, execution_count, last_triggered, created_at, updated_at
+     FROM workflows
+     ${filterId ? "WHERE id = $1" : ""}
+     ORDER BY created_at DESC`,
+    ...(filterId ? [filterId] as any : [])
+  );
+
+  if (wfRows.length === 0) return [];
+
+  const ids = wfRows.map((w) => w.id);
+  const triggersRows = await aiDB.rawQueryAll<DBTriggerRow>(
+    `SELECT id, workflow_id, type, condition, value_text, value_number
+     FROM workflow_triggers
+     WHERE workflow_id = ANY($1::bigint[])`,
+    ids
+  );
+
+  const actionsRows = await aiDB.rawQueryAll<DBActionRow>(
+    `SELECT id, workflow_id, type, config
+     FROM workflow_actions
+     WHERE workflow_id = ANY($1::bigint[])`,
+    ids
+  );
+
+  const triggersByWf = new Map<number, WorkflowTrigger[]>();
+  for (const tr of triggersRows) {
+    const list = triggersByWf.get(tr.workflow_id) || [];
+    list.push({
+      type: tr.type as WorkflowTrigger["type"],
+      condition: tr.condition,
+      value: tr.value_number ?? tr.value_text ?? undefined,
+    });
+    triggersByWf.set(tr.workflow_id, list);
+  }
+
+  const actionsByWf = new Map<number, WorkflowAction[]>();
+  for (const ar of actionsRows) {
+    const list = actionsByWf.get(ar.workflow_id) || [];
+    list.push({
+      type: ar.type as WorkflowAction["type"],
+      config: ar.config || {},
+    });
+    actionsByWf.set(ar.workflow_id, list);
+  }
+
+  return wfRows.map<Workflow>((w) => ({
+    id: `workflow_${w.id}`,
+    name: w.name,
+    description: w.description || "",
+    enabled: w.enabled,
+    created_at: w.created_at,
+    last_triggered: w.last_triggered || undefined,
+    execution_count: w.execution_count,
+    triggers: triggersByWf.get(w.id) || [],
+    actions: actionsByWf.get(w.id) || [],
+  }));
+}
 
 async function evaluateWorkflowTriggers(triggers: WorkflowTrigger[], context: any): Promise<boolean> {
   for (const trigger of triggers) {
@@ -308,27 +459,27 @@ async function evaluateWorkflowTriggers(triggers: WorkflowTrigger[], context: an
 async function evaluateSingleTrigger(trigger: WorkflowTrigger, context: any): Promise<boolean> {
   switch (trigger.type) {
     case "keyword":
-      return context.transcript.toLowerCase().includes(trigger.condition.toLowerCase());
-    
+      return context.transcript?.toLowerCase?.().includes(trigger.condition.toLowerCase());
+
     case "duration":
+      // Expect duration in seconds in context.metadata.duration
       const duration = context.metadata?.duration || 0;
-      return evaluateNumericCondition(duration, trigger.condition, trigger.value as number);
-    
+      return evaluateNumericCondition(duration, trigger.condition, Number(trigger.value || 0));
+
     case "sentiment":
-      // Would integrate with sentiment analysis
       return context.metadata?.sentiment === trigger.condition;
-    
+
     case "speaker":
-      return context.transcript.toLowerCase().includes(trigger.condition.toLowerCase());
-    
+      return context.transcript?.toLowerCase?.().includes(trigger.condition.toLowerCase());
+
     case "topic":
-      return context.summary.toLowerCase().includes(trigger.condition.toLowerCase());
-    
+      return context.summary?.toLowerCase?.().includes(trigger.condition.toLowerCase());
+
     case "action_item":
-      return context.summary.toLowerCase().includes("action") || 
-             context.summary.toLowerCase().includes("todo") ||
-             context.summary.toLowerCase().includes("follow up");
-    
+      return context.summary?.toLowerCase?.().includes("action") ||
+        context.summary?.toLowerCase?.().includes("todo") ||
+        context.summary?.toLowerCase?.().includes("follow up");
+
     default:
       return false;
   }
@@ -336,10 +487,14 @@ async function evaluateSingleTrigger(trigger: WorkflowTrigger, context: any): Pr
 
 function evaluateNumericCondition(value: number, condition: string, threshold: number): boolean {
   switch (condition) {
-    case "greater_than": return value > threshold;
-    case "less_than": return value < threshold;
-    case "equals": return value === threshold;
-    default: return false;
+    case "greater_than":
+      return value > threshold;
+    case "less_than":
+      return value < threshold;
+    case "equals":
+      return value === threshold;
+    default:
+      return false;
   }
 }
 
@@ -347,62 +502,56 @@ async function executeWorkflowAction(action: WorkflowAction, context: any): Prom
   switch (action.type) {
     case "email":
       return await executeEmailAction(action.config, context);
-    
+
     case "slack":
       return await executeSlackAction(action.config, context);
-    
+
     case "calendar":
       return await executeCalendarAction(action.config, context);
-    
+
     case "task":
       return await executeTaskAction(action.config, context);
-    
+
     case "webhook":
       return await executeWebhookAction(action.config, context);
-    
+
     case "ai_analysis":
       return await executeAIAnalysisAction(action.config, context);
-    
+
     default:
       throw new Error(`Unknown action type: ${action.type}`);
   }
 }
 
 async function executeEmailAction(config: any, context: any): Promise<any> {
-  // In a real implementation, this would integrate with email service
   return {
     action: "email_sent",
     recipient: config.recipient,
     subject: config.subject || "Meeting Follow-up",
-    preview: `Email would be sent to ${config.recipient} with meeting summary`
+    preview: `Email would be sent to ${config.recipient} with meeting summary`,
   };
 }
 
 async function executeSlackAction(config: any, context: any): Promise<any> {
-  // In a real implementation, this would integrate with Slack API
   return {
     action: "slack_message_sent",
     channel: config.channel,
-    preview: `Message would be sent to ${config.channel} with meeting highlights`
+    preview: `Message would be sent to ${config.channel} with meeting highlights`,
   };
 }
 
 async function executeCalendarAction(config: any, context: any): Promise<any> {
-  // In a real implementation, this would integrate with calendar service
   return {
     action: "calendar_event_created",
     title: config.title || "Follow-up Meeting",
-    preview: "Follow-up meeting would be scheduled based on action items"
   };
 }
 
 async function executeTaskAction(config: any, context: any): Promise<any> {
-  // In a real implementation, this would integrate with task management system
   return {
     action: "task_created",
     title: config.title || "Meeting Follow-up",
     assignee: config.assignee,
-    preview: `Task would be created and assigned to ${config.assignee}`
   };
 }
 
@@ -412,19 +561,19 @@ async function executeWebhookAction(config: any, context: any): Promise<any> {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        ...(config.headers || {})
+        ...(config.headers || {}),
       },
       body: JSON.stringify({
         event: "meeting_processed",
         context,
-        timestamp: new Date().toISOString()
-      })
+        timestamp: new Date().toISOString(),
+      }),
     });
 
     return {
       action: "webhook_called",
       status: response.status,
-      success: response.ok
+      success: response.ok,
     };
   } catch (error) {
     throw new Error(`Webhook failed: ${error}`);
@@ -432,24 +581,23 @@ async function executeWebhookAction(config: any, context: any): Promise<any> {
 }
 
 async function executeAIAnalysisAction(config: any, context: any): Promise<any> {
-  // Trigger additional AI analysis
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${openAIKey()}`,
+      Authorization: `Bearer ${openAIKey()}`,
     },
     body: JSON.stringify({
       model: "gpt-4o-mini",
       messages: [
-        { 
-          role: "system", 
-          content: config.analysis_prompt || "Analyze this meeting content and provide insights." 
+        {
+          role: "system",
+          content: config.analysis_prompt || "Analyze this meeting content and provide insights.",
         },
-        { 
-          role: "user", 
-          content: `Summary: ${context.summary}\n\nTranscript: ${context.transcript}` 
-        }
+        {
+          role: "user",
+          content: `Summary: ${context.summary}\n\nTranscript: ${context.transcript}`,
+        },
       ],
       temperature: 0.3,
       max_tokens: 500,
@@ -463,6 +611,6 @@ async function executeAIAnalysisAction(config: any, context: any): Promise<any> 
   const result = await response.json();
   return {
     action: "ai_analysis_completed",
-    analysis: result.choices[0]?.message?.content || "No analysis generated"
+    analysis: result.choices[0]?.message?.content || "No analysis generated",
   };
 }

@@ -6,9 +6,22 @@ import type { UpdateProjectRequest, Project } from "./types";
 export const update = api<UpdateProjectRequest, Project>(
   { expose: true, method: "PUT", path: "/projects/:id" },
   async (req) => {
-    const row = await projectsDB.queryRow<Project>`
+    if (!req.id) {
+      throw APIError.invalidArgument("id is required");
+    }
+
+    const row = await projectsDB.queryRow<{
+      id: number;
+      name: string;
+      description: string | null;
+      created_at: Date;
+      updated_at: Date;
+    }>`
       UPDATE projects
-      SET name = ${req.name}, description = ${req.description}, updated_at = NOW()
+      SET 
+        name = COALESCE(${req.name}, name), 
+        description = COALESCE(${req.description}, description), 
+        updated_at = NOW()
       WHERE id = ${req.id}
       RETURNING id, name, description, created_at, updated_at
     `;
@@ -20,7 +33,7 @@ export const update = api<UpdateProjectRequest, Project>(
     return {
       id: row.id,
       name: row.name,
-      description: row.description,
+      description: row.description || undefined,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
