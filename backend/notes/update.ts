@@ -56,6 +56,11 @@ export const updateNote = api<UpdateNoteRequest, Note>(
       params.push(req.projectId);
     }
 
+    if (req.diarizationData !== undefined) {
+      updates.push(`diarization_data = $${paramIndex++}`);
+      params.push(JSON.stringify(req.diarizationData));
+    }
+
     if (updates.length === 0) {
       throw APIError.invalidArgument("no fields to update");
     }
@@ -68,7 +73,7 @@ export const updateNote = api<UpdateNoteRequest, Note>(
       SET ${updates.join(", ")}
       WHERE id = $${paramIndex}
       RETURNING id, title, transcript, summary, duration, original_language, translated,
-                is_public, tags, project_id, user_id, created_at, updated_at
+                is_public, tags, project_id, user_id, created_at, updated_at, diarization_data
     `;
 
     const row = await notesDB.rawQueryRow<{
@@ -85,6 +90,7 @@ export const updateNote = api<UpdateNoteRequest, Note>(
       user_id: string;
       created_at: Date;
       updated_at: Date;
+      diarization_data: any;
     }>(query, ...params);
 
     if (!row) {
@@ -105,6 +111,7 @@ export const updateNote = api<UpdateNoteRequest, Note>(
       userId: row.user_id,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
+      diarizationData: row.diarization_data,
     };
   }
 );

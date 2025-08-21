@@ -3,12 +3,21 @@ import { openAIKey, fetchWithRetry } from "./utils";
 
 interface TranscribeRequest {
   audioBase64: string;
+  enableDiarization?: boolean;
+}
+
+interface DiarizedSegment {
+  speaker: string;
+  start: number;
+  end: number;
+  text: string;
 }
 
 interface TranscribeResponse {
   transcript: string;
   originalLanguage?: string;
   translated?: boolean;
+  segments?: DiarizedSegment[];
 }
 
 // Transcribes audio to text using OpenAI Whisper API with automatic language detection and English translation.
@@ -41,6 +50,10 @@ export const transcribe = api<TranscribeRequest, TranscribeResponse>(
       formData.append("file", audioBlob, "audio.webm");
       formData.append("model", "whisper-1");
       formData.append("response_format", "verbose_json");
+      if (req.enableDiarization) {
+        // @ts-ignore - Diarization is a beta feature
+        formData.append("diarization_enabled", "true");
+      }
 
       const detectResponse = await fetchWithRetry("https://api.openai.com/v1/audio/transcriptions", {
         method: "POST",
@@ -68,6 +81,31 @@ export const transcribe = api<TranscribeRequest, TranscribeResponse>(
       const detectResult = await detectResponse.json();
       const detectedLanguage = detectResult.language || "en";
       let transcript = detectResult.text || "";
+      let segments: DiarizedSegment[] = [];
+
+      if (req.enableDiarization && detectResult.words) {
+        let currentSegment: DiarizedSegment | null = null;
+        for (const word of detectResult.words) {
+          const speaker = word.speaker ?? "UNKNOWN";
+          if (currentSegment && currentSegment.speaker === speaker) {
+            currentSegment.text += " " + word.word;
+            currentSegment.end = word.end;
+          } else {
+            if (currentSegment) {
+              segments.push(currentSegment);
+            }
+            currentSegment = {
+              speaker: speaker,
+              start: word.start,
+              end: word.end,
+              text: word.word,
+            };
+          }
+        }
+        if (currentSegment) {
+          segments.push(currentSegment);
+        }
+      }
 
       if (!transcript || transcript.trim().length === 0) {
         throw APIError.invalidArgument("No speech detected in audio. Please ensure clear speech and try again");
@@ -97,6 +135,7 @@ export const transcribe = api<TranscribeRequest, TranscribeResponse>(
                 transcript: transcript,
                 originalLanguage: detectedLanguage,
                 translated: true,
+                segments,
               };
             }
           }
@@ -108,12 +147,14 @@ export const transcribe = api<TranscribeRequest, TranscribeResponse>(
           transcript: transcript,
           originalLanguage: detectedLanguage,
           translated: false,
+          segments,
         };
       } else {
         return {
           transcript: transcript,
           originalLanguage: "en",
           translated: false,
+          segments,
         };
       }
     } catch (error: any) {

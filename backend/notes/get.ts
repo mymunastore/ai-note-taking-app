@@ -27,9 +27,10 @@ export const getNote = api<GetNoteParams, Note>(
       user_id: string;
       created_at: Date;
       updated_at: Date;
+      diarization_data: any;
     }>`
       SELECT id, title, transcript, summary, duration, original_language, translated, 
-             is_public, tags, project_id, user_id, created_at, updated_at
+             is_public, tags, project_id, user_id, created_at, updated_at, diarization_data
       FROM notes
       WHERE id = ${params.id} AND (user_id = ${auth.userID} OR is_public = true)
     `;
@@ -52,6 +53,7 @@ export const getNote = api<GetNoteParams, Note>(
       userId: row.user_id,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
+      diarizationData: row.diarization_data,
     };
   }
 );

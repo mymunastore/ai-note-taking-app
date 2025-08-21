@@ -1,3 +1,10 @@
+export interface DiarizedSegment {
+  speaker: string;
+  start: number;
+  end: number;
+  text: string;
+}
+
 export interface Note {
   id: number;
   title: string;
@@ -12,6 +19,7 @@ export interface Note {
   userId: string;
   createdAt: Date;
   updatedAt: Date;
+  diarizationData?: DiarizedSegment[];
 }
 
 export interface CreateNoteRequest {
@@ -24,6 +32,7 @@ export interface CreateNoteRequest {
   isPublic?: boolean;
   tags?: string[];
   projectId?: number;
+  diarizationData?: DiarizedSegment[];
 }
 
 export interface UpdateNoteRequest {
@@ -34,6 +43,7 @@ export interface UpdateNoteRequest {
   tags?: string[];
   isPublic?: boolean;
   projectId?: number;
+  diarizationData?: DiarizedSegment[];
 }
 
 export interface ListNotesResponse {

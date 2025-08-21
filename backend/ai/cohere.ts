@@ -1,5 +1,6 @@
 import { api, APIError } from "encore.dev/api";
 import { secret } from "encore.dev/config";
+import { fetchWithRetry } from "./utils";
 
 const cohereApiKey = secret("CohereApiKey");
 
@@ -49,7 +50,7 @@ export const generate = api<CohereGenerateRequest, CohereGenerateResponse>(
   { expose: true, method: "POST", path: "/ai/cohere/generate" },
   async (req) => {
     try {
-      const response = await fetch("https://api.cohere.ai/v1/generate", {
+      const response = await fetchWithRetry("https://api.cohere.ai/v1/generate", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -82,7 +83,7 @@ export const semanticSearch = api<CohereSearchRequest, CohereSearchResponse>(
   { expose: true, method: "POST", path: "/ai/cohere/search" },
   async (req) => {
     try {
-      const response = await fetch("https://api.cohere.ai/v1/rerank", {
+      const response = await fetchWithRetry("https://api.cohere.ai/v1/rerank", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -121,7 +122,7 @@ export const classify = api<CohereClassifyRequest, CohereClassifyResponse>(
   { expose: true, method: "POST", path: "/ai/cohere/classify" },
   async (req) => {
     try {
-      const response = await fetch("https://api.cohere.ai/v1/classify", {
+      const response = await fetchWithRetry("https://api.cohere.ai/v1/classify", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

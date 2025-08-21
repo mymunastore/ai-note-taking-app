@@ -73,10 +73,11 @@ export const createNote = api<CreateNoteRequest, Note>(
         user_id: string;
         created_at: Date;
         updated_at: Date;
+        diarization_data: any;
       }>`
-        INSERT INTO notes (title, transcript, summary, duration, original_language, translated, is_public, tags, project_id, user_id)
-        VALUES (${req.title.trim()}, ${req.transcript.trim()}, ${req.summary.trim()}, ${req.duration}, ${req.originalLanguage || null}, ${req.translated || false}, ${req.isPublic || false}, ${sanitizedTags}, ${req.projectId || null}, ${auth.userID})
-        RETURNING id, title, transcript, summary, duration, original_language, translated, is_public, tags, project_id, user_id, created_at, updated_at
+        INSERT INTO notes (title, transcript, summary, duration, original_language, translated, is_public, tags, project_id, user_id, diarization_data)
+        VALUES (${req.title.trim()}, ${req.transcript.trim()}, ${req.summary.trim()}, ${req.duration}, ${req.originalLanguage || null}, ${req.translated || false}, ${req.isPublic || false}, ${sanitizedTags}, ${req.projectId || null}, ${auth.userID}, ${req.diarizationData ? JSON.stringify(req.diarizationData) : null})
+        RETURNING id, title, transcript, summary, duration, original_language, translated, is_public, tags, project_id, user_id, created_at, updated_at, diarization_data
       `;
 
       if (!row) {
@@ -97,6 +98,7 @@ export const createNote = api<CreateNoteRequest, Note>(
         userId: row.user_id,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
+        diarizationData: row.diarization_data,
       };
     } catch (error) {
       console.error("Create note error:", error);

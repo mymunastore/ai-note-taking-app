@@ -556,12 +556,13 @@ export namespace notes {
         public async updateNote(params: RequestType<typeof api_notes_update_updateNote>): Promise<ResponseType<typeof api_notes_update_updateNote>> {
             // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
             const body: Record<string, any> = {
-                isPublic:   params.isPublic,
-                projectId:  params.projectId,
-                summary:    params.summary,
-                tags:       params.tags,
-                title:      params.title,
-                transcript: params.transcript,
+                diarizationData: params.diarizationData,
+                isPublic:        params.isPublic,
+                projectId:       params.projectId,
+                summary:         params.summary,
+                tags:            params.tags,
+                title:           params.title,
+                transcript:      params.transcript,
             }
 
             // Now make the actual call to the API

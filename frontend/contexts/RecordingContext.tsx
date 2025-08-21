@@ -402,7 +402,10 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
         description: "SCRIBE AI is analyzing your audio to detect the language being spoken...",
       });
       
-      const transcribeResponse = await backend.ai.transcribe({ audioBase64: base64Audio });
+      const transcribeResponse = await backend.ai.transcribe({ 
+        audioBase64: base64Audio,
+        enableDiarization: true,
+      });
       
       if (!transcribeResponse || !transcribeResponse.transcript || !transcribeResponse.transcript.trim()) {
         throw new Error("No speech detected in recording. Please ensure you spoke clearly and try again.");
@@ -453,13 +456,14 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
         originalLanguage: transcribeResponse.originalLanguage,
         translated: transcribeResponse.translated,
         tags: tags || [],
+        diarizationData: transcribeResponse.segments,
       };
 
       if (!noteData.title.trim() || !noteData.transcript.trim()) {
         throw new Error("Invalid note data. Please try again.");
       }
 
-      const createdNote = await backend.notes.create(noteData);
+      const createdNote = await backend.notes.createNote(noteData);
       
       trackEvent("recording_processing_completed", {
         noteId: createdNote.id,

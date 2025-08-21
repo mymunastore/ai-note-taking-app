@@ -66,7 +66,7 @@ export const listNotes = api<ListNotesParams, ListNotesResponse>(
     const countQuery = `SELECT COUNT(*) as total FROM notes ${countWhere.clause}`;
     const notesQuery = `
       SELECT id, title, transcript, summary, duration, original_language, translated, 
-             is_public, tags, project_id, user_id, created_at, updated_at 
+             is_public, tags, project_id, user_id, created_at, updated_at, diarization_data
       FROM notes ${notesWhere.clause}
       ORDER BY created_at DESC 
       LIMIT $1 OFFSET $2
@@ -88,6 +88,7 @@ export const listNotes = api<ListNotesParams, ListNotesResponse>(
         user_id: string;
         created_at: Date;
         updated_at: Date;
+        diarization_data: any;
       }>(notesQuery, limit, offset, ...notesWhere.params),
     ]);
 
@@ -106,6 +107,7 @@ export const listNotes = api<ListNotesParams, ListNotesResponse>(
       userId: row.user_id,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
+      diarizationData: row.diarization_data,
     }));
 
     return { notes, total };

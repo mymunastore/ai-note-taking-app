@@ -1,7 +1,7 @@
 import React from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Clock, Calendar, Edit3, Trash2, Copy, Sparkles, Languages } from "lucide-react";
+import { ArrowLeft, Clock, Calendar, Edit3, Trash2, Copy, Sparkles, Languages, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -120,7 +120,7 @@ export default function NoteDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6">
+      <div className="p-6" data-testid="loading">
         <div className="max-w-4xl mx-auto">
           <div className="animate-pulse space-y-6">
             <div className="h-8 bg-muted rounded w-1/4"></div>
@@ -156,12 +156,10 @@ export default function NoteDetailPage() {
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center">
-            <Link to="/">
-              <Button variant="ghost" size="sm" className="mr-4 hover:bg-accent">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back
-              </Button>
-            </Link>
+            <Button variant="ghost" size="sm" className="mr-4 hover:bg-accent" onClick={() => navigate('/')}>
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back
+            </Button>
             <div>
               {isEditing ? (
                 <Input
@@ -269,7 +267,7 @@ export default function NoteDetailPage() {
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center">
                 <Badge variant="outline" className="mr-2 border-teal-200 text-teal-700 dark:border-teal-800 dark:text-teal-300">
-                  {note.translated ? "Translated Transcript" : "Full Transcript"}
+                  {note.diarizationData && note.diarizationData.length > 0 ? "Diarized Transcript" : (note.translated ? "Translated Transcript" : "Full Transcript")}
                 </Badge>
               </CardTitle>
               <Button
@@ -283,11 +281,32 @@ export default function NoteDetailPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="prose prose-sm max-w-none dark:prose-invert">
-              <p className="whitespace-pre-wrap text-muted-foreground leading-relaxed">
-                {note.transcript}
-              </p>
-            </div>
+            {note.diarizationData && note.diarizationData.length > 0 ? (
+              <div className="space-y-4 text-sm">
+                {note.diarizationData.map((segment, index) => (
+                  <div key={index} className="flex items-start gap-4">
+                    <div className="w-20 text-right text-muted-foreground pt-1 font-mono">
+                      {formatDuration(Math.floor(segment.start))}
+                    </div>
+                    <div className="flex-1 flex items-start gap-3">
+                      <Badge variant="secondary" className="mt-1 whitespace-nowrap bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-300">
+                        <User className="w-3 h-3 mr-1" />
+                        {segment.speaker}
+                      </Badge>
+                      <p className="text-foreground leading-relaxed">
+                        {segment.text}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="prose prose-sm max-w-none dark:prose-invert">
+                <p className="whitespace-pre-wrap text-muted-foreground leading-relaxed">
+                  {note.transcript}
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
