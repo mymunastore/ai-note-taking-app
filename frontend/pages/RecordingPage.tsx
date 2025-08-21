@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Mic, Square, Play, Pause, Save, Loader2, Sparkles, Activity, Globe, Languages, Tag, Plus, X, Settings } from "lucide-react";
+import { Mic, Square, Play, Pause, Save, Loader2, Sparkles, Activity, Globe, Languages, Tag, Plus, X, Settings, MicOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -209,12 +209,6 @@ export default function RecordingPage() {
                     </Badge>
                   </div>
 
-                  {permissionStatus === 'denied' && (
-                    <div className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/20 p-2 rounded-lg border border-red-200 dark:border-red-800 mb-4">
-                      Microphone access is blocked. Please enable it in your browser settings to start recording.
-                    </div>
-                  )}
-
                   {permissionStatus !== 'denied' && autoLanguageDetection && (
                     <div className="text-xs text-muted-foreground bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 p-2 rounded-lg border border-blue-200 dark:border-blue-800 mb-4">
                       <Globe className="w-4 h-4 inline mr-1" />
@@ -223,12 +217,19 @@ export default function RecordingPage() {
                   )}
                 </div>
 
+                {permissionStatus === 'denied' && (
+                  <div className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/20 p-4 rounded-lg border border-red-200 dark:border-red-800">
+                    <h4 className="font-bold mb-2 flex items-center gap-2"><MicOff className="w-4 h-4" /> Microphone Access Denied</h4>
+                    <p className="text-xs mb-2">SCRIBE AI needs access to your microphone to record audio. Please enable microphone access in your browser's settings for this site.</p>
+                    <p className="text-xs">After enabling permission, click "Start Recording" again.</p>
+                  </div>
+                )}
+
                 <div className="flex justify-center gap-4">
                   {!isRecording && !audioBlob && (
                     <Button
                       onClick={handleStartRecording}
                       size="lg"
-                      disabled={permissionStatus === 'denied'}
                       className="bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Mic className="w-5 h-5 mr-2" />
