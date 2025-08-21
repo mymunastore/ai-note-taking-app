@@ -10,6 +10,8 @@ import Layout from "./components/Layout";
 import ChatBot from "./components/ChatBot";
 import WelcomePage from "./pages/WelcomePage";
 import HomePage from "./pages/HomePage";
+import SignInPage from "./pages/SignInPage";
+import SignUpPage from "./pages/SignUpPage";
 import OnboardingPage from "./pages/OnboardingPage";
 import NotesListPage from "./pages/NotesListPage";
 import NoteDetailPage from "./pages/NoteDetailPage";
@@ -54,20 +56,29 @@ function AppContent() {
   }
 
   return (
-    <Layout>
-      <Routes>
-        <Route path="/" element={<NotesListPage />} />
-        <Route path="/home" element={<HomePage />} />
-        <Route path="/onboarding" element={<OnboardingPage />} />
-        <Route path="/note/:id" element={<NoteDetailPage />} />
-        <Route path="/record" element={<RecordingPage />} />
-        <Route path="/projects" element={<ProjectsPage />} />
-        <Route path="/profile" element={<ProfilePage />} />
-        <Route path="/settings" element={<SettingsPage />} />
-        <Route path="/pricing" element={<PricingPage />} />
-      </Routes>
-      <ChatBot />
-    </Layout>
+    <Routes>
+      {/* Auth Routes */}
+      <Route path="/sign-in" element={<SignInPage />} />
+      <Route path="/sign-up" element={<SignUpPage />} />
+      
+      {/* Protected Routes */}
+      <Route path="/*" element={
+        <Layout>
+          <Routes>
+            <Route path="/" element={<NotesListPage />} />
+            <Route path="/home" element={<HomePage />} />
+            <Route path="/onboarding" element={<OnboardingPage />} />
+            <Route path="/note/:id" element={<NoteDetailPage />} />
+            <Route path="/record" element={<RecordingPage />} />
+            <Route path="/projects" element={<ProjectsPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/pricing" element={<PricingPage />} />
+          </Routes>
+          <ChatBot />
+        </Layout>
+      } />
+    </Routes>
   );
 }
 
