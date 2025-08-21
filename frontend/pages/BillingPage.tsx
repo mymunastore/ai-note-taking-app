@@ -1,6 +1,8 @@
 import React from "react";
-import { CreditCard, Sparkles } from "lucide-react";
+import { CreditCard, Sparkles, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "../contexts/AuthContext";
+import { isDemoMode } from "../config";
 import BillingCard from "../components/BillingCard";
 import SignInButton from "../components/SignInButton";
 
@@ -15,6 +17,47 @@ export default function BillingPage() {
             <div className="h-8 bg-muted rounded w-1/4"></div>
             <div className="h-32 bg-muted rounded"></div>
             <div className="h-64 bg-muted rounded"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isDemoMode) {
+    return (
+      <div className="p-6">
+        <div className="max-w-4xl mx-auto">
+          <div className="mb-8">
+            <h1 className="text-2xl font-bold text-foreground mb-2 flex items-center gap-2">
+              <CreditCard className="w-6 h-6 text-emerald-600" />
+              Billing & Subscription
+            </h1>
+            <p className="text-muted-foreground">
+              Manage your subscription, view usage, and upgrade your plan
+            </p>
+          </div>
+
+          <Alert className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/20 mb-6">
+            <AlertCircle className="h-4 w-4 text-amber-600" />
+            <AlertDescription className="text-amber-800 dark:text-amber-200">
+              <strong>Demo Mode:</strong> Billing features are disabled in demo mode. Configure Clerk authentication to enable full billing functionality.
+            </AlertDescription>
+          </Alert>
+
+          <div className="bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/20 dark:to-teal-950/20 p-8 rounded-lg border border-emerald-200 dark:border-emerald-800 text-center">
+            <Sparkles className="w-12 h-12 text-emerald-600 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-foreground mb-2">
+              Demo Mode Active
+            </h2>
+            <p className="text-muted-foreground mb-6">
+              You're currently using SCRIBE AI in demo mode. All features are available for testing, but billing is disabled.
+            </p>
+            <div className="space-y-2 text-sm text-muted-foreground">
+              <p>✅ Unlimited recordings in demo mode</p>
+              <p>✅ Full AI transcription and summarization</p>
+              <p>✅ All premium features unlocked</p>
+              <p>✅ No time limits or restrictions</p>
+            </div>
           </div>
         </div>
       </div>

@@ -1,10 +1,12 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Mic, Brain, Globe, Zap, Shield, Users, ArrowRight, Check, Star } from "lucide-react";
+import { Mic, Brain, Globe, Zap, Shield, Users, ArrowRight, Check, Star, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "../contexts/AuthContext";
+import { isDemoMode } from "../config";
 import SignInButton from "../components/SignInButton";
 import SignUpButton from "../components/SignUpButton";
 
@@ -123,6 +125,16 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Demo Mode Alert */}
+      {isDemoMode && (
+        <Alert className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/20 rounded-none">
+          <AlertCircle className="h-4 w-4 text-amber-600" />
+          <AlertDescription className="text-amber-800 dark:text-amber-200">
+            <strong>Demo Mode:</strong> You're viewing SCRIBE AI in demo mode. To enable full authentication and billing features, configure your Clerk API keys in the environment variables.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -134,6 +146,11 @@ export default function LandingPage() {
               <span className="text-xl font-bold bg-gradient-to-r from-emerald-600 via-teal-600 to-blue-600 bg-clip-text text-transparent">
                 SCRIBE AI
               </span>
+              {isDemoMode && (
+                <Badge variant="outline" className="text-xs border-amber-300 text-amber-700 dark:border-amber-700 dark:text-amber-300">
+                  Demo
+                </Badge>
+              )}
             </div>
             
             <div className="flex items-center gap-4">
@@ -185,7 +202,7 @@ export default function LandingPage() {
               <>
                 <SignUpButton mode="modal">
                   <Button size="lg" className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white">
-                    Start Free Trial
+                    {isDemoMode ? "Try Demo" : "Start Free Trial"}
                     <ArrowRight className="w-5 h-5 ml-2" />
                   </Button>
                 </SignUpButton>
@@ -296,7 +313,7 @@ export default function LandingPage() {
                         }`}
                         variant={plan.popular ? "default" : "outline"}
                       >
-                        {plan.cta}
+                        {isDemoMode ? "Try Demo" : plan.cta}
                       </Button>
                     </SignUpButton>
                   )}
@@ -364,7 +381,7 @@ export default function LandingPage() {
           ) : (
             <SignUpButton mode="modal">
               <Button size="lg" className="bg-white text-emerald-600 hover:bg-gray-100">
-                Start Your Free Trial
+                {isDemoMode ? "Try Demo Now" : "Start Your Free Trial"}
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
             </SignUpButton>

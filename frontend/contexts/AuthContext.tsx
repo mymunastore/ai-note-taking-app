@@ -1,5 +1,6 @@
 import React, { createContext, useContext, ReactNode } from "react";
 import { useUser, useAuth as useClerkAuth } from "@clerk/clerk-react";
+import { isDemoMode } from "../config";
 import backend from "~backend/client";
 
 interface AuthContextType {
@@ -28,8 +29,24 @@ interface AuthProviderProps {
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
-  const { user, isLoaded } = useUser();
-  const { isSignedIn, signOut: clerkSignOut, getToken } = useClerkAuth();
+  // Use Clerk hooks only if not in demo mode
+  const clerkUser = isDemoMode ? null : useUser();
+  const clerkAuth = isDemoMode ? null : useClerkAuth();
+
+  // Demo mode user
+  const demoUser = isDemoMode ? {
+    id: "demo-user",
+    firstName: "Demo",
+    lastName: "User",
+    email: "demo@scribeai.com",
+    imageUrl: "",
+    publicMetadata: { plan: "free" },
+    organizationMemberships: []
+  } : null;
+
+  const user = isDemoMode ? demoUser : clerkUser?.user;
+  const isLoaded = isDemoMode ? true : clerkUser?.isLoaded || false;
+  const isSignedIn = isDemoMode ? true : clerkAuth?.isSignedIn || false;
 
   // Determine if user has premium features
   const userPlan = user?.publicMetadata?.plan as string;
@@ -37,11 +54,27 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const plan = orgPlan || userPlan || "free";
   const isPremium = plan === "pro" || plan === "enterprise";
 
+  const signOut = async () => {
+    if (isDemoMode) {
+      // In demo mode, just reload the page
+      window.location.reload();
+    } else {
+      await clerkAuth?.signOut();
+    }
+  };
+
+  const getToken = async () => {
+    if (isDemoMode) {
+      return null;
+    }
+    return clerkAuth?.getToken() || null;
+  };
+
   const value: AuthContextType = {
     user,
     isLoaded,
-    isSignedIn: isSignedIn || false,
-    signOut: clerkSignOut,
+    isSignedIn,
+    signOut,
     getToken,
     organization: user?.organizationMemberships?.[0]?.organization,
     membership: user?.organizationMemberships?.[0],
@@ -71,7 +104,7 @@ export function useAuth() {
 export function useBackend() {
   const { getToken, isSignedIn } = useAuth();
   
-  if (!isSignedIn) {
+  if (!isSignedIn || isDemoMode) {
     return backend;
   }
   

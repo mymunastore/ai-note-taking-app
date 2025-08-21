@@ -7,7 +7,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import { NotesProvider } from "./contexts/NotesContext";
 import { RecordingProvider } from "./contexts/RecordingContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
-import { clerkPublishableKey } from "./config";
+import { clerkPublishableKey, isDemoMode } from "./config";
 import Layout from "./components/Layout";
 import ChatBot from "./components/ChatBot";
 
@@ -84,25 +84,35 @@ function AppContent() {
   );
 }
 
+function AppWithAuth() {
+  return (
+    <AuthProvider>
+      <NotesProvider>
+        <RecordingProvider>
+          <Router>
+            <div className="min-h-screen bg-background transition-colors duration-300">
+              <AppContent />
+              <Toaster />
+            </div>
+          </Router>
+        </RecordingProvider>
+      </NotesProvider>
+    </AuthProvider>
+  );
+}
+
 export default function App() {
   return (
-    <ClerkProvider publishableKey={clerkPublishableKey}>
-      <QueryClientProvider client={queryClient}>
-        <ThemeProvider>
-          <AuthProvider>
-            <NotesProvider>
-              <RecordingProvider>
-                <Router>
-                  <div className="min-h-screen bg-background transition-colors duration-300">
-                    <AppContent />
-                    <Toaster />
-                  </div>
-                </Router>
-              </RecordingProvider>
-            </NotesProvider>
-          </AuthProvider>
-        </ThemeProvider>
-      </QueryClientProvider>
-    </ClerkProvider>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        {isDemoMode || !clerkPublishableKey ? (
+          <AppWithAuth />
+        ) : (
+          <ClerkProvider publishableKey={clerkPublishableKey}>
+            <AppWithAuth />
+          </ClerkProvider>
+        )}
+      </ThemeProvider>
+    </QueryClientProvider>
   );
 }

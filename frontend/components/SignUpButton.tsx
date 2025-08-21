@@ -2,6 +2,7 @@ import React from "react";
 import { SignUpButton as ClerkSignUpButton } from "@clerk/clerk-react";
 import { Button } from "@/components/ui/button";
 import { UserPlus } from "lucide-react";
+import { isDemoMode } from "../config";
 
 interface SignUpButtonProps {
   mode?: "modal" | "redirect";
@@ -9,6 +10,19 @@ interface SignUpButtonProps {
 }
 
 export default function SignUpButton({ mode = "modal", children }: SignUpButtonProps) {
+  if (isDemoMode) {
+    return (
+      <Button 
+        variant="outline" 
+        onClick={() => window.location.href = "/dashboard"}
+        className="border-emerald-200 hover:bg-emerald-50 dark:border-emerald-800 dark:hover:bg-emerald-950/20"
+      >
+        <UserPlus className="w-4 h-4 mr-2" />
+        Try Demo
+      </Button>
+    );
+  }
+
   return (
     <ClerkSignUpButton mode={mode}>
       {children || (
