@@ -8,6 +8,7 @@ import { RecordingProvider } from "./contexts/RecordingContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Layout from "./components/Layout";
 import ChatBot from "./components/ChatBot";
+import WelcomePage from "./pages/WelcomePage";
 import HomePage from "./pages/HomePage";
 import OnboardingPage from "./pages/OnboardingPage";
 import NotesListPage from "./pages/NotesListPage";
@@ -28,10 +29,16 @@ const queryClient = new QueryClient({
 });
 
 function AppContent() {
+  const hasSeenWelcome = localStorage.getItem("scribe-welcome-seen");
   const hasAcceptedDisclaimer = localStorage.getItem("scribe-disclaimer-accepted");
   const hasCompletedOnboarding = localStorage.getItem("scribe-onboarding-completed");
 
-  // Show homepage if disclaimer not accepted
+  // Show welcome page first
+  if (!hasSeenWelcome) {
+    return <WelcomePage />;
+  }
+
+  // Show homepage with disclaimer if not accepted
   if (!hasAcceptedDisclaimer) {
     return <HomePage />;
   }

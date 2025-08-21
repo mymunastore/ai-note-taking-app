@@ -37,8 +37,18 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
 
   const startRecording = useCallback(async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          sampleRate: 44100
+        } 
+      });
+      
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: 'audio/webm;codecs=opus'
+      });
       
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
@@ -49,7 +59,7 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
         }
       };
       
-      mediaRecorder.start();
+      mediaRecorder.start(1000); // Collect data every second for better quality
       setIsRecording(true);
       setIsPaused(false);
       setDuration(0);
@@ -63,12 +73,17 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
           setDuration(Math.floor(elapsed / 1000));
         }
       }, 1000);
+
+      toast({
+        title: "Recording Started",
+        description: "SCRIBE AI is now listening and will auto-detect the language being spoken.",
+      });
       
     } catch (error) {
       console.error("Failed to start recording:", error);
       toast({
         title: "Recording Error",
-        description: "Failed to access microphone. Please check permissions.",
+        description: "Failed to access microphone. Please check permissions and try again.",
         variant: "destructive",
       });
     }
@@ -79,16 +94,26 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
       mediaRecorderRef.current.pause();
       setIsPaused(true);
       pausedTimeRef.current += Date.now() - startTimeRef.current;
+      
+      toast({
+        title: "Recording Paused",
+        description: "Recording has been paused. Click resume to continue.",
+      });
     }
-  }, [isRecording, isPaused]);
+  }, [isRecording, isPaused, toast]);
 
   const resumeRecording = useCallback(() => {
     if (mediaRecorderRef.current && isRecording && isPaused) {
       mediaRecorderRef.current.resume();
       setIsPaused(false);
       startTimeRef.current = Date.now();
+      
+      toast({
+        title: "Recording Resumed",
+        description: "Recording has been resumed. SCRIBE AI is listening again.",
+      });
     }
-  }, [isRecording, isPaused]);
+  }, [isRecording, isPaused, toast]);
 
   const stopRecording = useCallback(async (): Promise<{ audioBlob: Blob; duration: number } | null> => {
     return new Promise((resolve) => {
@@ -98,7 +123,7 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
       }
 
       mediaRecorderRef.current.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/wav" });
+        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm;codecs=opus" });
         const finalDuration = duration;
         
         // Clean up
@@ -114,12 +139,17 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
           mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
         }
         
+        toast({
+          title: "Recording Complete",
+          description: `Captured ${Math.floor(finalDuration / 60)}:${(finalDuration % 60).toString().padStart(2, '0')} of audio. Ready for AI processing.`,
+        });
+        
         resolve({ audioBlob, duration: finalDuration });
       };
 
       mediaRecorderRef.current.stop();
     });
-  }, [isRecording, duration]);
+  }, [isRecording, duration, toast]);
 
   const processRecording = useCallback(async (audioBlob: Blob, recordingDuration: number, title: string, tags?: string[]) => {
     setIsProcessing(true);
@@ -129,35 +159,58 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
       const arrayBuffer = await audioBlob.arrayBuffer();
       const base64Audio = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
       
-      // Transcribe audio with automatic language detection and translation
+      // Step 1: Auto-detect language and transcribe
       toast({
-        title: "Processing Recording",
-        description: "Detecting language and transcribing audio...",
+        title: "🎯 Auto-Detecting Language",
+        description: "SCRIBE AI is analyzing your audio to detect the language being spoken...",
       });
       
       const transcribeResponse = await backend.ai.transcribe({ audioBase64: base64Audio });
       
       if (!transcribeResponse.transcript.trim()) {
-        throw new Error("No speech detected in recording");
+        throw new Error("No speech detected in recording. Please ensure you spoke clearly and try again.");
       }
 
-      // Show language detection result
+      // Step 2: Show language detection result and translation status
       if (transcribeResponse.originalLanguage && transcribeResponse.originalLanguage !== "en") {
+        const languageNames: Record<string, string> = {
+          es: "Spanish", fr: "French", de: "German", it: "Italian", pt: "Portuguese",
+          ru: "Russian", ja: "Japanese", ko: "Korean", zh: "Chinese", ar: "Arabic",
+          hi: "Hindi", nl: "Dutch", sv: "Swedish", no: "Norwegian", da: "Danish",
+          fi: "Finnish", pl: "Polish", tr: "Turkish", th: "Thai", vi: "Vietnamese"
+        };
+        
+        const detectedLanguage = languageNames[transcribeResponse.originalLanguage] || transcribeResponse.originalLanguage.toUpperCase();
+        
         toast({
-          title: "Language Detected",
-          description: `Detected ${transcribeResponse.originalLanguage.toUpperCase()} and translated to English`,
+          title: "🌍 Language Detected & Translated",
+          description: `Detected ${detectedLanguage} and automatically translated to English for analysis.`,
+        });
+      } else {
+        toast({
+          title: "🇺🇸 English Detected",
+          description: "English language detected. Processing transcript directly.",
         });
       }
       
-      // Generate summary
+      // Step 3: Generate AI summary
       toast({
-        title: "Processing Recording",
-        description: "Generating AI summary...",
+        title: "🤖 Generating AI Summary",
+        description: "Creating intelligent summary with key points and action items...",
       });
       
-      const summaryResponse = await backend.ai.summarize({ transcript: transcribeResponse.transcript });
+      const summaryResponse = await backend.ai.summarize({ 
+        transcript: transcribeResponse.transcript,
+        length: "medium",
+        format: "bullets"
+      });
       
-      // Save note
+      // Step 4: Save note with enhanced metadata
+      toast({
+        title: "💾 Saving Your Note",
+        description: "Storing your transcription and AI analysis securely...",
+      });
+      
       await backend.notes.create({
         title: title || `Recording ${new Date().toLocaleDateString()}`,
         transcript: transcribeResponse.transcript,
@@ -168,16 +221,17 @@ export function RecordingProvider({ children }: RecordingProviderProps) {
         tags: tags || [],
       });
       
+      // Final success message
       toast({
-        title: "Success",
-        description: "Recording processed and saved successfully!",
+        title: "✅ Processing Complete!",
+        description: `Successfully processed ${Math.floor(recordingDuration / 60)}:${(recordingDuration % 60).toString().padStart(2, '0')} of audio with AI transcription${transcribeResponse.translated ? ' and translation' : ''}.`,
       });
       
     } catch (error) {
       console.error("Failed to process recording:", error);
       toast({
-        title: "Processing Error",
-        description: error instanceof Error ? error.message : "Failed to process recording",
+        title: "❌ Processing Error",
+        description: error instanceof Error ? error.message : "Failed to process recording. Please try again.",
         variant: "destructive",
       });
     } finally {

@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
-import { Mic, FileText, Sparkles, Globe, Shield, Zap, Check, X, Play, Users, Search, Download } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Mic, FileText, Sparkles, Globe, Shield, Zap, Check, X, Play, Users, Search, Download, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import Logo3D from "../components/Logo3D";
 
 export default function HomePage() {
+  const navigate = useNavigate();
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const [hasAcceptedDisclaimer, setHasAcceptedDisclaimer] = useState(false);
 
@@ -23,11 +25,11 @@ export default function HomePage() {
     localStorage.setItem("scribe-disclaimer-accepted", "true");
     setHasAcceptedDisclaimer(true);
     setShowDisclaimer(false);
+    navigate("/onboarding");
   };
 
   const handleDeclineDisclaimer = () => {
     setShowDisclaimer(false);
-    // Redirect to external page or show blocked message
     window.location.href = "https://google.com";
   };
 
@@ -99,10 +101,8 @@ export default function HomePage() {
         <div className="relative max-w-7xl mx-auto px-6 py-24">
           <div className="text-center">
             <div className="flex items-center justify-center gap-3 mb-6">
-              <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center">
-                <Sparkles className="w-7 h-7 text-white" />
-              </div>
-              <h1 className="text-4xl md:text-6xl font-bold text-foreground">
+              <Logo3D size="lg" animated={true} showText={false} />
+              <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-emerald-600 via-teal-600 to-blue-600 bg-clip-text text-transparent">
                 SCRIBE AI
               </h1>
             </div>
@@ -113,18 +113,24 @@ export default function HomePage() {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
-              <Link to="/onboarding">
-                <Button size="lg" className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg hover:shadow-xl transition-all duration-200">
-                  <Play className="w-5 h-5 mr-2" />
-                  Get Started Free
-                </Button>
-              </Link>
-              <Link to="/record">
-                <Button size="lg" variant="outline" className="border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-300 dark:hover:bg-emerald-950/20">
-                  <Mic className="w-5 h-5 mr-2" />
-                  Start Recording
-                </Button>
-              </Link>
+              <Button 
+                onClick={() => navigate("/onboarding")}
+                size="lg" 
+                className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
+              >
+                <Play className="w-5 h-5 mr-2" />
+                Get Started Free
+                <ArrowRight className="w-5 h-5 ml-2" />
+              </Button>
+              <Button 
+                onClick={() => navigate("/record")}
+                size="lg" 
+                variant="outline" 
+                className="border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-300 dark:hover:bg-emerald-950/20"
+              >
+                <Mic className="w-5 h-5 mr-2" />
+                Start Recording
+              </Button>
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 max-w-2xl mx-auto">
@@ -259,18 +265,24 @@ export default function HomePage() {
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/onboarding">
-              <Button size="lg" variant="secondary" className="bg-white text-emerald-600 hover:bg-gray-100">
-                <Play className="w-5 h-5 mr-2" />
-                Start Free Trial
-              </Button>
-            </Link>
-            <Link to="/record">
-              <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/10">
-                <Mic className="w-5 h-5 mr-2" />
-                Try Recording Now
-              </Button>
-            </Link>
+            <Button 
+              onClick={() => navigate("/onboarding")}
+              size="lg" 
+              variant="secondary" 
+              className="bg-white text-emerald-600 hover:bg-gray-100"
+            >
+              <Play className="w-5 h-5 mr-2" />
+              Start Free Trial
+            </Button>
+            <Button 
+              onClick={() => navigate("/record")}
+              size="lg" 
+              variant="outline" 
+              className="border-white text-white hover:bg-white/10"
+            >
+              <Mic className="w-5 h-5 mr-2" />
+              Try Recording Now
+            </Button>
           </div>
         </div>
       </section>
