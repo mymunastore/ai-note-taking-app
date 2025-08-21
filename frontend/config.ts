@@ -13,4 +13,12 @@ export const enableWorkflows = import.meta.env.VITE_ENABLE_WORKFLOWS === "true";
 export const enableCohere = import.meta.env.VITE_ENABLE_COHERE === "true";
 
 // Demo mode configuration - enable if no valid Clerk key is provided
-export const isDemoMode = import.meta.env.VITE_DEMO_MODE === "true" || !clerkPublishableKey || clerkPublishableKey.length < 10;
+// Check for placeholder values, empty strings, or keys that are too short to be valid
+const isValidClerkKey = clerkPublishableKey && 
+  clerkPublishableKey.length > 10 && 
+  clerkPublishableKey.startsWith('pk_') &&
+  !clerkPublishableKey.includes('your_clerk_key_here') &&
+  !clerkPublishableKey.includes('placeholder') &&
+  clerkPublishableKey !== 'pk_test_your_clerk_key_here';
+
+export const isDemoMode = import.meta.env.VITE_DEMO_MODE === "true" || !isValidClerkKey;
